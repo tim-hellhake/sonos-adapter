@@ -1,6 +1,7 @@
 'use strict';
 
 const { Sonos, DeviceDiscovery } = require("sonos");
+const Speaker = require("./speaker");
 
 //TODO cache state
 
@@ -17,51 +18,6 @@ catch (e) {
     Adapter = gwa.Adapter;
 }
 
-class ExampleProperty extends Property {
-  constructor(device, name, propertyDescription) {
-    super(device, name, propertyDescription);
-    this.unit = propertyDescription.unit;
-    this.description = propertyDescription.description;
-    this.setCachedValue(propertyDescription.value);
-    this.device.notifyPropertyChanged(this);
-  }
-
-  /**
-   * Set the value of the property.
-   *
-   * @param {*} value The new value to set
-   * @returns a promise which resolves to the updated value.
-   *
-   * @note it is possible that the updated value doesn't match
-   * the value passed in.
-   */
-  setValue(value) {
-    return new Promise((resolve, reject) => {
-      super.setValue(value).then((updatedValue) => {
-        resolve(updatedValue);
-        this.device.notifyPropertyChanged(this);
-      }).catch((err) => {
-        reject(err);
-      });
-    });
-  }
-}
-
-class ExampleDevice extends Device {
-  constructor(adapter, id, deviceDescription) {
-    super(adapter, id);
-    this.name = deviceDescription.name;
-    this.type = deviceDescription.type;
-    this.description = deviceDescription.description;
-    for (const propertyName in deviceDescription.properties) {
-      const propertyDescription = deviceDescription.properties[propertyName];
-      const property = new ExampleProperty(this, propertyName,
-                                           propertyDescription);
-      this.properties.set(propertyName, property);
-    }
-  }
-}
-
 class SonosAdapter extends Adapter {
     constructor(addonManager, packageName) {
         super(addonManager, 'SonosAdapter', packageName);
@@ -69,19 +25,18 @@ class SonosAdapter extends Adapter {
     }
 
     /**
-    * @param {String} deviceId ID of the device to add.
-    * @param {String} deviceDescription Description of the device to add.
+    * @param {SonosDevice} device Sonos device to add.
     * @return {Promise} which resolves to the device added.
     */
-    addDevice(deviceId, deviceDescription) {
+    addDevice(device) {
         return new Promise((resolve, reject) => {
-            if(deviceId in this.devices) {
-                reject('Device: ' + deviceId + ' already exists.');
+            if(device.host in this.devices) {
+                reject('Device: ' + device.host + ' already exists.');
             }
             else {
-                const device = new Speaker(this, deviceId, deviceDescription);
-                this.handleDeviceAdded(device);
-                resolve(device);
+                const speaker = new Speaker(this, device.host, device);
+                this.handleDeviceAdded(speaker);
+                resolve(speaker);
             }
         });
     }
@@ -109,8 +64,10 @@ class SonosAdapter extends Adapter {
     * @param {Number} timeoutSeconds Number of seconds to run before timeout
     */
     startPairing(_timeoutSeconds) {
-        this.deviceDiscovery = new DeviceDiscovery((device) => {
-            device.host -> IP?
+        this.deviceDiscovery = new DeviceDiscovery.deviceDiscovery({
+            timeout: _timeoutSeconds * 1000
+        }, (device) => {
+            this.addDevice(device);
         });
     }
 
@@ -127,13 +84,10 @@ class SonosAdapter extends Adapter {
     * @param {Object} device Device to unpair with
     */
     removeThing(device) {
-        console.log('ExampleAdapter:', this.name, 'id', this.id,
-        'removeThing(', device.id, ') started');
-
         this.removeDevice(device.id).then(() => {
-            console.log('ExampleAdapter: device:', device.id, 'was unpaired.');
+            console.log('SonosAdapter: device:', device.id, 'was unpaired.');
         }).catch((err) => {
-            console.error('ExampleAdapter: unpairing', device.id, 'failed');
+            console.error('SonosAdapter: unpairing', device.id, 'failed');
             console.error(err);
         });
     }
@@ -144,25 +98,11 @@ class SonosAdapter extends Adapter {
     * @param {Object} device Device that is currently being paired
     */
     cancelRemoveThing(device) {
-        console.log('ExampleAdapter:', this.name, 'id', this.id, 'cancelRemoveThing(', device.id, ')');
     }
 }
 
-function loadExampleAdapter(addonManager, manifest, _errorCallback) {
+function loadAdapter(addonManager, manifest, _errorCallback) {
   const adapter = new SonosAdapter(addonManager, manifest.name);
-  const device = new ExampleDevice(adapter, 'example-plug-2', {
-    name: 'example-plug-2',
-    type: 'onOffSwitch',
-    description: 'Example Device',
-    properties: {
-      on: {
-        name: 'on',
-        type: 'boolean',
-        value: false,
-      },
-    },
-  });
-  adapter.handleDeviceAdded(device);
 }
 
-module.exports = loadExampleAdapter;
+module.exports = loadAdapter;

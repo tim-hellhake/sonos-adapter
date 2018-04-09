@@ -33,7 +33,7 @@ function getModeFromProps(shuffle, repeat) {
 }
 
 class Speaker extends Device {
-    constructor(adapter, id, device) {
+    constructor(adapter, ip, device) {
         super(adapter, ip);
 
         this.device = device;
@@ -45,7 +45,7 @@ class Speaker extends Device {
                 type: 'number',
                 unit: 'percent'
             }, volume));
-        }
+        });
 
         device.getCurrentState().then((state) => {
             this.properties.set('playing', new Property(this, 'playing', {
