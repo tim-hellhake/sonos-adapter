@@ -1,0 +1,36 @@
+{
+  "name": "sonos-adapter",
+  "version": "1.0.0",
+  "description": "Sonos adapter for the Mozilla IoT Gateway.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/freaktechnik/sonos-adapter.git"
+  },
+  "keywords": [
+    "mozilla",
+    "iot",
+    "adapter",
+    "sonos"
+  ],
+  "author": "Martin Giger (https://humanoids.be)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/freaktechnik/sonos-adapter/issues"
+  },
+  "homepage": "https://github.com/freaktechnik/sonos-adapter#readme",
+  "dependencies": {
+    "sonos": "^1.1.2"
+  },
+  "moziot": {
+    "api": {
+      "min": 1,
+      "max": 2
+    },
+    "plugin": true,
+    "exec": "{nodeLoader} {path}"
+  }
+}
