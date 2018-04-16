@@ -64,7 +64,7 @@ class SonosAdapter extends Adapter {
     * @param {Number} timeoutSeconds Number of seconds to run before timeout
     */
     startPairing(_timeoutSeconds) {
-        this.deviceDiscovery = new DeviceDiscovery.deviceDiscovery({
+        this.deviceDiscovery = DeviceDiscovery({
             timeout: _timeoutSeconds * 1000
         }, (device) => {
             this.addDevice(device);
