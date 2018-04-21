@@ -29,16 +29,13 @@ class SonosAdapter extends Adapter {
     * @return {Promise} which resolves to the device added.
     */
     addDevice(device) {
-        return new Promise((resolve, reject) => {
-            if(device.host in this.devices) {
-                reject('Device: ' + device.host + ' already exists.');
-            }
-            else {
-                const speaker = new Speaker(this, device.host, device);
-                this.handleDeviceAdded(speaker);
-                resolve(speaker);
-            }
-        });
+        if(device.host in this.devices) {
+            return Promise.reject('Device: ' + device.host + ' already exists.');
+        }
+        else {
+            const speaker = new Speaker(this, device.host, device);
+            return speaker.ready;
+        }
     }
 
     /**
@@ -67,7 +64,7 @@ class SonosAdapter extends Adapter {
         this.deviceDiscovery = DeviceDiscovery({
             timeout: _timeoutSeconds * 1000
         }, (device) => {
-            this.addDevice(device);
+            this.addDevice(device).catch(console.warn);
         });
     }
 

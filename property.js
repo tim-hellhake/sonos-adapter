@@ -19,13 +19,12 @@ class SonosProperty extends Property {
         this.setCachedValue(value);
     }
 
-    setValue(value) {
+    async setValue(value) {
         if(value !== this.value) {
             this.setCachedValue(value);
-            this.device.notifyPropertyChanged(this);
-            //TODO actually wait for the state change here?
+            await this.device.notifyPropertyChanged(this);
         }
-        return Promise.resolve(this.value);
+        return this.value;
     }
 }
 
