@@ -1,6 +1,6 @@
 {
   "name": "sonos-adapter",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "Sonos adapter for the Mozilla IoT Gateway.",
   "main": "adapter.js",
   "scripts": {
@@ -16,7 +16,7 @@
     "adapter",
     "sonos"
   ],
-  "author": "Martin Giger (https://humanoids.be)",
+  "author": "Martin Giger",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/freaktechnik/sonos-adapter/issues"

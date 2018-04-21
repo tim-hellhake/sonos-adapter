@@ -63,6 +63,7 @@ class Speaker extends Device {
         //TODO fields like current track, queue size
         //TODO groups? make it a field?
         //TODO property for queue size/stopped?
+        // Useful list of things: https://github.com/SoCo/SoCo/wiki/Sonos-UPnP-Services-and-Functions
 
         this.ready = this.fetchProperties().then(() => this.adapter.handleDeviceAdded(this));
     }
