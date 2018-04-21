@@ -22,6 +22,12 @@ class SonosAdapter extends Adapter {
     constructor(addonManager, packageName) {
         super(addonManager, 'SonosAdapter', packageName);
         addonManager.addAdapter(this);
+
+        DeviceDiscovery({
+            timeout:  20000
+        }, (device) => {
+            this.addDevice(device).catch(console.warn);
+        });
     }
 
     /**

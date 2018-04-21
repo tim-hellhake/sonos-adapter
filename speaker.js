@@ -125,7 +125,6 @@ class Speaker extends Device {
 
     async getFixedVolume() {
         const response = await this.renderingControl._request('GetOutputFixed', {InstanceID: 0});
-        console.log(response);
         return response.CurrentFixed != '0';
     }
 
