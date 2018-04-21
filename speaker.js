@@ -116,7 +116,7 @@ class Speaker extends Device {
         if(!this._renderingControl) {
             this._renderingControl = this.device.renderingControlService();
         }
-        return this._renderingControl
+        return this._renderingControl;
     }
 
     async getSupportsFixedVolume() {

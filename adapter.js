@@ -34,13 +34,18 @@ class SonosAdapter extends Adapter {
     * @param {SonosDevice} device Sonos device to add.
     * @return {Promise} which resolves to the device added.
     */
-    addDevice(device) {
+    async addDevice(device) {
         if(device.host in this.devices) {
-            return Promise.reject('Device: ' + device.host + ' already exists.');
+            throw 'Device: ' + device.host + ' already exists.';
         }
         else {
-            const speaker = new Speaker(this, device.host, device);
-            return speaker.ready;
+            const deviceDescription = await device.deviceDescription();
+            // Don't try to add BRIDGEs
+            //TODO should also avoid adding BOOSTs
+            if(deviceDescription.zoneType != '4') {
+                const speaker = new Speaker(this, device.host, device);
+                return speaker.ready;
+            }
         }
     }
 
