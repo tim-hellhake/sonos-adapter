@@ -29,7 +29,9 @@
   "files": [
     "adapter.js",
     "property.js",
-    "speaker.js"
+    "speaker.js",
+    "SHA256SUMS",
+    "LICENSE"
   ],
   "moziot": {
     "api": {
