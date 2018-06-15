@@ -101,6 +101,27 @@ class Speaker extends Device {
         const mode = await this.device.getPlayMode();
         this.updatePlayMode(mode);
 
+        const topo = await this.device.getTopology();
+        const groupDetails = {
+            description: "Group Sonos players",
+            input: {
+                type: "object",
+                required: [],
+                properties: {}
+            }
+        };
+        const thisZone = topo.zones.find((z) => z.location.startsWith(`http://${this.id}`));
+        for(const zone of topo.zones) {
+            if(zone.uuid != thisZone.uuid && zone.apiversion.length) {
+                groupDetails.input.properties[zone.name] = {
+                    type: "boolean",
+                    default: zone.group == thisZone.group
+                };
+                groupDetails.input.required.push(zone.name);
+            }
+        }
+        this.addAction('group', groupDetails);
+
         this.device.on('PlayState', (state) => {
             this.updateProp('playing', state === 'playing');
         });
@@ -114,6 +135,9 @@ class Speaker extends Device {
             this.updatePlayMode(mode);
         });
 
+        //TODO update group action
+        //TODO reconnect when event listening is lost?
+
         if(shouldGetVolume) {
             this.device.on('Volume', (volume) => {
                 this.updateProp('volume', volume);
@@ -126,6 +150,13 @@ class Speaker extends Device {
             this._renderingControl = this.device.renderingControlService();
         }
         return this._renderingControl;
+    }
+
+    get groupManagement() {
+        if(!this._groupManagement) {
+            this._groupManagement = this.device.getGroupManagementService();
+        }
+        return this._groupManagement;
     }
 
     async getSupportsFixedVolume() {
@@ -179,6 +210,7 @@ class Speaker extends Device {
     }
 
     async performAction(action) {
+        console.log(action);
         switch(action.name) {
             case "next":
                 action.start();
@@ -188,6 +220,20 @@ class Speaker extends Device {
             case "prev":
                 action.start();
                 await this.device.previous();
+                action.finish();
+            break;
+            case "group":
+                action.start();
+                await this.device.leaveGroup();
+                const topo = this.device.getTopology();
+                for(const input in action.inputs) {
+                    if(action.inputs[input]) {
+                        const deviceInfo = topo.zones.find((z) => z.name == input);
+                        const deviceIP = deviceInfo.match(/^http:\/\/([^:]+)/)[1];
+                        const dev = new Sonos(deviceIP)
+                        await dev.joinGroup(this.name, true);
+                    }
+                }
                 action.finish();
             break;
         }
