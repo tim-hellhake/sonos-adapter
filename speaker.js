@@ -59,11 +59,20 @@ class Speaker extends Device {
         //TODO repeat one
         //TODO balance for stereo pairs
         //TODO handle fixed volume setting changing
-        //TODO actions? Like clear queue, next, prev, stop
+        //TODO actions? Like clear queue, stop
         //TODO fields like current track, queue size
-        //TODO groups? make it a field?
         //TODO property for queue size/stopped?
+        //TODO playback state when grouped
         // Useful list of things: https://github.com/SoCo/SoCo/wiki/Sonos-UPnP-Services-and-Functions
+
+        this.addAction('next', {
+            description: "Skip current track and start playing next track in the queue"
+        });
+        this.addAction('prev', {
+            description: "Play previous track in the queue"
+        });
+
+        //TODO add set group action that has inputs for every groupable player and has the currently grouped players checked by default?
 
         this.ready = this.fetchProperties().then(() => this.adapter.handleDeviceAdded(this));
     }
@@ -167,6 +176,21 @@ class Speaker extends Device {
             break;
         }
         super.notifyPropertyChanged(property);
+    }
+
+    async performAction(action) {
+        switch(action.name) {
+            case "next":
+                action.start();
+                await this.device.next();
+                action.finish();
+            break;
+            case "prev":
+                action.start();
+                await this.device.previous();
+                action.finish();
+            break;
+        }
     }
 }
 module.exports = Speaker;
