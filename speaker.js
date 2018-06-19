@@ -1,6 +1,7 @@
 'use strict';
 
 const Property = require('./property');
+const { Sonos } = require("sonos");
 
 let Device, Constants;
 try {
@@ -71,8 +72,6 @@ class Speaker extends Device {
         this.addAction('prev', {
             description: "Play previous track in the queue"
         });
-
-        //TODO add set group action that has inputs for every groupable player and has the currently grouped players checked by default?
 
         this.ready = this.fetchProperties().then(() => this.adapter.handleDeviceAdded(this));
     }
@@ -210,7 +209,6 @@ class Speaker extends Device {
     }
 
     async performAction(action) {
-        console.log(action);
         switch(action.name) {
             case "next":
                 action.start();
@@ -225,11 +223,11 @@ class Speaker extends Device {
             case "group":
                 action.start();
                 await this.device.leaveGroup();
-                const topo = this.device.getTopology();
-                for(const input in action.inputs) {
-                    if(action.inputs[input]) {
+                const topo = await this.device.getTopology();
+                for(const input in action.input) {
+                    if(action.input[input]) {
                         const deviceInfo = topo.zones.find((z) => z.name == input);
-                        const deviceIP = deviceInfo.match(/^http:\/\/([^:]+)/)[1];
+                        const deviceIP = deviceInfo.location.match(/^http:\/\/([^:]+)/)[1];
                         const dev = new Sonos(deviceIP)
                         await dev.joinGroup(this.name, true);
                     }
