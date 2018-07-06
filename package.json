@@ -31,6 +31,7 @@
     "adapter.js",
     "property.js",
     "speaker.js",
+    "readonly-property.js",
     "SHA256SUMS",
     "LICENSE"
   ],
