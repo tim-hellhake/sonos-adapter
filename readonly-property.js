@@ -4,6 +4,7 @@ const Property = require("./property");
 
 class ReadonlyProperty extends Property {
     constructor(device, name, description, value) {
+        description.writable = false;
         super(device, name, description, value);
     }
 
