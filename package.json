@@ -1,7 +1,7 @@
 {
   "name": "sonos-adapter",
   "display_name": "Sonos",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Sonos adapter for the Mozilla IoT Gateway.",
   "main": "adapter.js",
   "scripts": {
