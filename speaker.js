@@ -48,7 +48,7 @@ class Speaker extends Device {
             type: 'number',
             unit: 'percent',
             "@type": "LevelProperty"
-        }, 1.0));
+        }, 100));
         this.properties.set('playing', new Property(this, 'playing', {
             label: "Play/Pause",
             type: 'boolean',
@@ -133,7 +133,7 @@ class Speaker extends Device {
         }
         if(shouldGetVolume) {
             const volume = await this.device.getVolume();
-            this.updateProp('volume', volume);
+            this.updateProp('volume', volume * 100);
         }
 
         const state = await this.device.getCurrentState();
@@ -237,7 +237,7 @@ class Speaker extends Device {
 
         if(shouldGetVolume) {
             this.device.on('Volume', (volume) => {
-                this.updateProp('volume', volume);
+                this.updateProp('volume', volume * 100);
             });
         }
         //TODO else add listener for fixed volume to be disabled
@@ -310,7 +310,7 @@ class Speaker extends Device {
             break;
             case 'volume':
                 //TODO reject if volume is fixed.
-                await this.device.setVolume(newValue);
+                await this.device.setVolume(newValue / 100);
             break;
             case 'shuffle':
             case 'repeat':
