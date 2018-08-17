@@ -20,17 +20,23 @@ catch (e) {
 }
 
 function getModeFromProps(shuffle, repeat) {
-    if(!shuffle && !repeat) {
+    if(!shuffle && repeat === 'None') {
         return 'NORMAL';
     }
-    else if(shuffle && !repeat) {
+    else if(repeat === 'None') {
         return 'SHUFFLE_NOREPEAT';
     }
-    else if(shuffle) {
+    else if(shuffle && repeat === 'All') {
         return 'SHUFFLE';
     }
-    else {
+    else if(repeat === 'All'){
         return 'REPEAT_ALL';
+    }
+    else if(shuffle && repeat === 'One') {
+        return 'SHUFFLE_REPEAT_ONE';
+    }
+    else if(repeat === 'One') {
+        return 'REPEAT_ONE';
     }
 }
 
@@ -61,8 +67,13 @@ class Speaker extends Device {
         }, false));
         this.properties.set('repeat', new Property(this, 'repeat', {
             label: "Repeat",
-            type: 'boolean',
-            "@type": "BooleanProperty"
+            type: 'string',
+            "@type": "EnumProperty",
+            enum: [
+                'None',
+                'One',
+                'All',
+            ]
         }, false));
         this.properties.set('crossfade', new Property(this, 'crossfade', {
             label: "Crossfade",
@@ -94,7 +105,6 @@ class Speaker extends Device {
 
         //TODO eq
         //TODO loudness
-        //TODO repeat one
         //TODO balance for stereo pairs
         //TODO handle fixed volume setting changing
         //TODO actions? Like clear queue, stop
@@ -237,7 +247,7 @@ class Speaker extends Device {
 
         if(shouldGetVolume) {
             this.device.on('Volume', (volume) => {
-                this.updateProp('volume', volume * 100);
+                this.updateProp('volume', volume);
             });
         }
         //TODO else add listener for fixed volume to be disabled
@@ -274,7 +284,14 @@ class Speaker extends Device {
 
     updatePlayMode(mode) {
         this.updateProp('shuffle', mode && mode.startsWith('SHUFFLE'));
-        this.updateProp('repeat', mode === 'REPEAT_ALL' || mode === 'SHUFFLE');
+        let repeat = 'None';
+        if(mode === 'REPEAT_ALL' || mode === 'SHUFFLE') {
+            repeat = 'All';
+        }
+        else if(mode === 'REPEAT_ONE' || mode === 'SHUFFLE_REPEAT_ONE') {
+            repeat = 'One';
+        }
+        this.updateProp('repeat', repeat);
     }
 
     updateProgress() {
@@ -310,7 +327,7 @@ class Speaker extends Device {
             break;
             case 'volume':
                 //TODO reject if volume is fixed.
-                await this.device.setVolume(newValue / 100);
+                await this.device.setVolume(newValue);
             break;
             case 'shuffle':
             case 'repeat':
