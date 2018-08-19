@@ -212,34 +212,51 @@ class Speaker extends Device {
             const mode = newValue.CurrentPlayMode;
             this.updatePlayMode(mode);
             this.updateProp('crossfade', newValue.CurrentCrossfadeMode != '0');
+            console.log(newValue.CurrentTrackMetaDataParsed);
             if(newValue.CurrentTrackMetaDataParsed) {
                 this.updateProp('track', newValue.CurrentTrackMetaDataParsed.title);
                 this.updateProp('artist', newValue.CurrentTrackMetaDataParsed.artist);
                 this.updateProp('album', newValue.CurrentTrackMetaDataParsed.album);
+                if(!isNaN(newValue.CurrentTrackMetaDataParsed.duration)) {
+                    this.currentDuration = newValue.CurrentTrackMetaDataParsed.duration;
+                    if(newValue.CurrentTrackMetaDataParsed.position) {
+                        this.currentPosition = newValue.CurrentTrackMetaDataParsed.position;
+                    }
+                    this.updateProp('progress', (this.currentPosition / this.currentDuration) * 100);
+
+                    this.device.currentTrack().then((currentTrack) => {
+                        this.currentDuration = currentTrack.duration;
+                        this.currentPosition = currentTrack.position;
+                        if(this.currentDuration != 0) {
+                            this.updateProp('progress', (currentTrack.position / currentTrack.duration) * 100);
+                            const isPlaying = this.findProperty('playing').value;
+                            if(isPlaying && !this.progressInterval) {
+                                this.progressInterval = setInterval(() => this.updateProgress(), 1000);
+                            }
+                            else if(!isPlaying) {
+                                this.clearProgress();
+                            }
+                        }
+                        else {
+                            this.updateProp('progress', 0);
+                            this.clearProgress();
+                        }
+                    });
+                }
+                else {
+                    this.currentDuration = 0;
+                    this.updateProp('progress', 0);
+                    this.clearProgress();
+                }
             }
             else {
                 this.updateProp('track', '');
                 this.updateProp('artist', '');
                 this.updateProp('album', '');
+                this.currentDuration = 0;
+                this.updateProp('progress', 0);
+                this.clearProgress();
             }
-            this.device.currentTrack().then((currentTrack) => {
-                this.currentDuration = currentTrack.duration;
-                this.currentPosition = currentTrack.position;
-                if(this.currentDuration != 0) {
-                    this.updateProp('progress', (currentTrack.position / currentTrack.duration) * 100);
-                    const isPlaying = this.findProperty('playing').value;
-                    if(isPlaying && !this.progressInterval) {
-                        this.progressInterval = setInterval(() => this.updateProgress(), 1000);
-                    }
-                    else if(!isPlaying) {
-                        this.clearProgress();
-                    }
-                }
-                else {
-                    this.updateProp('progress', 0);
-                    this.clearProgress();
-                }
-            });
         });
 
         //TODO update group action
@@ -322,6 +339,7 @@ class Speaker extends Device {
                     await this.device.play();
                 }
                 else {
+                    console.log("pausing");
                     await this.device.pause();
                 }
             break;
