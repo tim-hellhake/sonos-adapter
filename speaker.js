@@ -169,7 +169,7 @@ class Speaker extends Device {
         const crossFade = await this.getCrossfadeMode();
         this.updateProp('crossfade', crossFade);
 
-        const topo = await this.device.getTopology();
+        const groups = await this.device.getAllGroups();
         const groupDetails = {
             label: "Group/Ungroup",
             description: "Group Sonos players",
@@ -179,14 +179,18 @@ class Speaker extends Device {
                 properties: {}
             }
         };
-        const thisZone = topo.zones.find((z) => z.location.startsWith(`http://${this.id}`));
-        for(const zone of topo.zones) {
-            if(zone.uuid != thisZone.uuid && zone.apiversion.length) {
-                groupDetails.input.properties[zone.name] = {
-                    type: "boolean",
-                    default: zone.group == thisZone.group
-                };
-                groupDetails.input.required.push(zone.name);
+        const playerInfo = await this.device.getZoneInfo();
+        const groupId = `RINCON_${playerInfo.MACAddress.replace(/:/g, '')}`;
+        for(const zone of groups) {
+            if(!zone.ID.startsWith(groupId)) {
+                const zoneCoordinator = zone.ZoneGroupMember.find((m) => m.UUID === zone.Coordinator);
+                if(zoneCoordinator.Invisible != '1') {
+                    groupDetails.input.properties[zoneCoordinator.ZoneName] = {
+                        type: "boolean",
+                        default: zone.ZoneGroupMember.some((m) => m.UUID.startsWith(groupId))
+                    };
+                    groupDetails.input.required.push(zoneCoordinator.ZoneName);
+                }
             }
         }
         this.addAction('group', groupDetails);
@@ -212,7 +216,6 @@ class Speaker extends Device {
             const mode = newValue.CurrentPlayMode;
             this.updatePlayMode(mode);
             this.updateProp('crossfade', newValue.CurrentCrossfadeMode != '0');
-            console.log(newValue.CurrentTrackMetaDataParsed);
             if(newValue.CurrentTrackMetaDataParsed) {
                 this.updateProp('track', newValue.CurrentTrackMetaDataParsed.title);
                 this.updateProp('artist', newValue.CurrentTrackMetaDataParsed.artist);
@@ -389,13 +392,14 @@ class Speaker extends Device {
                 action.start();
                 //TODO only execute if the new group config is different from the current one.
                 await this.device.leaveGroup();
-                const topo = await this.device.getTopology();
+                const topo = await this.device.getAllGroups();
+                const topoCoordinators = topo.map((z) => z.ZoneGroupMember.find((m) => m.UUID === z.Coordinator));
                 for(const input in action.input) {
                     if(action.input[input]) {
-                        const deviceInfo = topo.zones.find((z) => z.name == input);
-                        const deviceIP = deviceInfo.location.match(/^http:\/\/([^:]+)/)[1];
-                        const dev = new Sonos(deviceIP)
-                        await dev.joinGroup(this.name, true);
+                        const deviceInfo = topoCoordinators.find((z) => z.ZoneName.toLowerCase() == input.toLowerCase());
+                        const deviceIP = deviceInfo.Location.match(/^http:\/\/([^:]+)/)[1];
+                        const dev = new Sonos(deviceIP);
+                        await dev.joinGroup(this.name);
                     }
                 }
                 action.finish();
