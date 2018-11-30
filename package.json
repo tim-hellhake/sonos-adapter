@@ -25,7 +25,7 @@
   },
   "homepage": "https://github.com/freaktechnik/sonos-adapter#readme",
   "dependencies": {
-    "sonos": "^1.5.1"
+    "sonos": "^1.6.0"
   },
   "files": [
     "adapter.js",
