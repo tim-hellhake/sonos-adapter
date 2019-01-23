@@ -50,23 +50,23 @@ class Speaker extends Device {
         this["@type"] = [ "Speaker", "MediaPlayer" ];
 
         this.properties.set('volume', new Property(this, 'volume', {
-            label: "Volume",
-            type: 'number',
+            title: "Volume",
+            type: 'integer',
             unit: 'percent',
             "@type": "LevelProperty"
         }, 100));
         this.properties.set('playing', new Property(this, 'playing', {
-            label: "Play/Pause",
+            title: "Play/Pause",
             type: 'boolean',
             "@type": "BooleanProperty"
         }, false));
         this.properties.set('shuffle', new Property(this, 'shuffle', {
-            label: "Shuffle",
+            title: "Shuffle",
             type: 'boolean',
             "@type": "BooleanProperty"
         }, false));
         this.properties.set('repeat', new Property(this, 'repeat', {
-            label: "Repeat",
+            title: "Repeat",
             type: 'string',
             "@type": "EnumProperty",
             enum: [
@@ -76,27 +76,27 @@ class Speaker extends Device {
             ]
         }, false));
         this.properties.set('crossfade', new Property(this, 'crossfade', {
-            label: "Crossfade",
+            title: "Crossfade",
             type: "boolean",
             "@type": "BooleanProperty"
         }, false));
         this.properties.set('track', new ReadonlyProperty(this, 'track', {
-            label: "Track",
+            title: "Track",
             type: "string",
             "@type": "StringProperty"
         }, ''));
         this.properties.set('album', new ReadonlyProperty(this, 'album', {
-            label: "Album",
+            title: "Album",
             type: "string",
             "@type": "StringProperty"
         }, ''));
         this.properties.set('artist', new ReadonlyProperty(this, 'artist', {
-            label: "Artist",
+            title: "Artist",
             type: "string",
             "@type": "StringProperty"
         }, ''));
         this.properties.set('progress', new Property(this, 'progress', {
-            label: "Progress",
+            title: "Progress",
             type: "number",
             "@type": "LevelProperty"
         }, 0));
@@ -117,11 +117,11 @@ class Speaker extends Device {
         // Useful list of things: https://github.com/SoCo/SoCo/wiki/Sonos-UPnP-Services-and-Functions
 
         this.addAction('next', {
-            label: "Next",
+            title: "Next",
             description: "Skip current track and start playing next track in the queue"
         });
         this.addAction('prev', {
-            label: "Previous",
+            title: "Previous",
             description: "Play previous track in the queue"
         });
 
@@ -171,7 +171,7 @@ class Speaker extends Device {
 
         const groups = await this.device.getAllGroups();
         const groupDetails = {
-            label: "Group/Ungroup",
+            title: "Group/Ungroup",
             description: "Group Sonos players",
             input: {
                 type: "object",
