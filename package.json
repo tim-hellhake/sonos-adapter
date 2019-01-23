@@ -6,6 +6,7 @@
   "main": "adapter.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "licenses": "./gather-licenses.js",
     "build": "./build.sh"
   },
   "repository": {
@@ -42,5 +43,8 @@
     },
     "plugin": true,
     "exec": "{nodeLoader} {path}"
+  },
+  "devDependencies": {
+    "nlf": "^2.0.1"
   }
 }
