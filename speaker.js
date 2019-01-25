@@ -3,6 +3,11 @@
 const Property = require('./property');
 const ReadonlyProperty = require('./readonly-property');
 const { Sonos } = require("sonos");
+const os = require("os");
+const mkdirp = require("mkdirp");
+const fs = require("fs");
+const path = require("path");
+const fetch = require("node-fetch");
 
 let Device, Constants;
 try {
@@ -38,6 +43,17 @@ function getModeFromProps(shuffle, repeat) {
     else if(repeat === 'One') {
         return 'REPEAT_ONE';
     }
+}
+
+function getMediaPath() {
+    let dir;
+    if(process.env.hasOwnProperty('MOZIOT_HOME')) {
+        dir = process.env.MOZIOT_HOME;
+    }
+    else {
+        dir = path.join(os.homedir(), '.mozilla-iot');
+    }
+    return path.join(dir, 'media', 'sonos');
 }
 
 class Speaker extends Device {
@@ -100,6 +116,17 @@ class Speaker extends Device {
             type: "number",
             "@type": "LevelProperty"
         }, 0));
+        this.properties.set('albumArt', new ReadonlyProperty(this, 'albumArt', {
+            title: 'Album art',
+            '@type': 'ImageProperty',
+            links: [
+                {
+                    mediaType: 'image/png',
+                    href: `/media/sonos/${this.id}/album.png`,
+                    rel: 'alternate'
+                }
+            ]
+        }, undefined));
         this.currentDuration = 0;
         this.currentPosition = 0;
 
@@ -146,6 +173,17 @@ class Speaker extends Device {
             this.updateProp('volume', volume * 100);
         }
 
+        await new Promise((resolve, reject) => {
+            mkdirp(path.join(getMediaPath(), this.id), (e) => {
+                if(!e) {
+                    resolve();
+                }
+                else {
+                    reject(e);
+                }
+            });
+        });
+
         const state = await this.device.getCurrentState();
         this.updateProp('playing', state === 'playing');
 
@@ -155,6 +193,7 @@ class Speaker extends Device {
             this.updateProp('album', currentTrack.album);
             this.updateProp('artist', currentTrack.artist);
             this.updateProp('progress', (currentTrack.position / currentTrack.duration) * 100);
+            await this.updateAlbumArt(currentTrack.albumArtURL);
             this.currentDuration = currentTrack.duration;
             this.currentPosition = currentTrack.position;
             if(state === 'playing') {
@@ -220,6 +259,7 @@ class Speaker extends Device {
                 this.updateProp('track', newValue.CurrentTrackMetaDataParsed.title);
                 this.updateProp('artist', newValue.CurrentTrackMetaDataParsed.artist);
                 this.updateProp('album', newValue.CurrentTrackMetaDataParsed.album);
+                this.updateAlbumArt(newValue.CurrentTrackMetaDataParsed.albumArtURI).catch(console.error);
                 if(!isNaN(newValue.CurrentTrackMetaDataParsed.duration)) {
                     this.currentDuration = newValue.CurrentTrackMetaDataParsed.duration;
                     if(newValue.CurrentTrackMetaDataParsed.position) {
@@ -323,6 +363,38 @@ class Speaker extends Device {
         if(this.progressInterval) {
             clearInterval(this.progressInterval);
             this.progressInterval = undefined;
+        }
+    }
+
+    async updateAlbumArt(url) {
+        const artUrl = path.join(getMediaPath(), this.id, 'album.png');
+        if(url) {
+            console.log(url);
+            const response = await fetch(url);
+            const blob = await response.buffer();
+            await new Promise((resolve, reject) => {
+                fs.writeFile(artUrl, blob, (e) => {
+                    if(e) {
+                        reject(e);
+                    }
+                    else {
+                        resolve();
+                    }
+                });
+            });
+        }
+        else {
+            console.log("no art");
+            await new Promise((resolve, reject) => {
+                fs.unlink(artUrl, (e) => {
+                    if(e) {
+                        reject(e);
+                    }
+                    else {
+                        resolve();
+                    }
+                });
+            });
         }
     }
 

@@ -26,7 +26,9 @@
   },
   "homepage": "https://github.com/freaktechnik/sonos-adapter#readme",
   "dependencies": {
-    "sonos": "^1.6.0"
+    "mkdirp": "^0.5.1",
+    "node-fetch": "^2.3.0",
+    "sonos": "^1.9.0"
   },
   "files": [
     "adapter.js",
