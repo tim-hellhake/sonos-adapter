@@ -26,6 +26,10 @@
   },
   "homepage": "https://github.com/freaktechnik/sonos-adapter#readme",
   "dependencies": {
+    "image-output": "^2.4.0",
+    "image-pixels": "^2.2.1",
+    "image-type": "^3.0.0",
+    "is-browser": "^2.1.0",
     "mkdirp": "^0.5.1",
     "node-fetch": "^2.3.0",
     "sonos": "^1.9.0"

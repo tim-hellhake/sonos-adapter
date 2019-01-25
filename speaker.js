@@ -8,6 +8,9 @@ const mkdirp = require("mkdirp");
 const fs = require("fs");
 const path = require("path");
 const fetch = require("node-fetch");
+const output = require("image-output");
+const imageType = require("image-type");
+const pixels = require("image-pixels");
 
 let Device, Constants;
 try {
@@ -63,7 +66,6 @@ class Speaker extends Device {
         this.device = device;
         this.name = ip;
         this.type = Constants.THING_TYPE_UNKNOWN_THING;
-        this["@type"] = [ "Speaker", "MediaPlayer" ];
 
         this.properties.set('volume', new Property(this, 'volume', {
             title: "Volume",
@@ -127,13 +129,17 @@ class Speaker extends Device {
                 }
             ]
         }, undefined));
+        this.properties.set('muted', new Property(this, 'muted', {
+            title: "Muted",
+            type: "boolean",
+            "@type": "BooleanProperty"
+        }, false));
         this.currentDuration = 0;
         this.currentPosition = 0;
 
         //TODO eq
         //TODO loudness
         //TODO balance for stereo pairs
-        //TODO handle fixed volume setting changing
         //TODO actions? Like clear queue, stop
         //TODO fields like current track (album art), queue size
         //TODO queue track position property
@@ -151,6 +157,10 @@ class Speaker extends Device {
             title: "Previous",
             description: "Play previous track in the queue"
         });
+        this.addAction('stop', {
+            title: 'Stop',
+            description: 'Stop current playback'
+        });
 
         this.ready = this.fetchProperties().then(() => this.adapter.handleDeviceAdded(this));
     }
@@ -159,19 +169,22 @@ class Speaker extends Device {
         const name = await this.device.getName();
         this.setName(name);
 
-        const supportsFixedVolume = await this.getSupportsFixedVolume();
+        this.supportsFixedVolume = await this.getSupportsFixedVolume();
         let shouldGetVolume = true;
-        if(supportsFixedVolume) {
+        if(this.supportsFixedVolume) {
             const hasFixedVolume = await this.getFixedVolume();
             shouldGetVolume = !hasFixedVolume;
             if(hasFixedVolume) {
-                //TODO make property read-only
+                this.findProperty('volume').readOnly = true;
             }
         }
         if(shouldGetVolume) {
             const volume = await this.device.getVolume();
             this.updateProp('volume', volume * 100);
         }
+
+        const muted = await this.device.getMuted();
+        this.updateProp('muted', muted);
 
         await new Promise((resolve, reject) => {
             mkdirp(path.join(getMediaPath(), this.id), (e) => {
@@ -246,27 +259,27 @@ class Speaker extends Device {
         });
 
         this.device.on('PlaybackStopped', () => {
+            this.updateProp('track', '');
+            this.updateProp('artist', '');
+            this.updateProp('album', '');
             this.updateProp('playing', false);
             this.updateProp('progress', 0);
             this.clearProgress();
         });
 
-        this.device.on('AVTransport', (newValue) => {
-            const mode = newValue.CurrentPlayMode;
-            this.updatePlayMode(mode);
-            this.updateProp('crossfade', newValue.CurrentCrossfadeMode != '0');
-            if(newValue.CurrentTrackMetaDataParsed) {
-                this.updateProp('track', newValue.CurrentTrackMetaDataParsed.title);
-                this.updateProp('artist', newValue.CurrentTrackMetaDataParsed.artist);
-                this.updateProp('album', newValue.CurrentTrackMetaDataParsed.album);
-                this.updateAlbumArt(newValue.CurrentTrackMetaDataParsed.albumArtURI).catch(console.error);
-                if(!isNaN(newValue.CurrentTrackMetaDataParsed.duration)) {
-                    this.currentDuration = newValue.CurrentTrackMetaDataParsed.duration;
-                    if(newValue.CurrentTrackMetaDataParsed.position) {
-                        this.currentPosition = newValue.CurrentTrackMetaDataParsed.position;
-                    }
-                    this.updateProp('progress', (this.currentPosition / this.currentDuration) * 100);
+        this.device.on('CurrentTrack', (track) => {
+            this.updateProp('track', track.title);
+            this.updateProp('artist', track.artist);
+            this.updateProp('album', track.album);
+            this.updateAlbumArt(track.albumArtURI).catch(console.error);
 
+            if(!isNaN(track.duration)) {
+                this.currentDuration = track.duration;
+                if(track.position) {
+                    this.currentPosition = track.position;
+                    this.updateProp('progress', (this.currentPosition / this.currentDuration) * 100);
+                }
+                else {
                     this.device.currentTrack().then((currentTrack) => {
                         this.currentDuration = currentTrack.duration;
                         this.currentPosition = currentTrack.position;
@@ -286,13 +299,19 @@ class Speaker extends Device {
                         }
                     });
                 }
-                else {
-                    this.currentDuration = 0;
-                    this.updateProp('progress', 0);
-                    this.clearProgress();
-                }
             }
             else {
+                this.currentDuration = 0;
+                this.updateProp('progress', 0);
+                this.clearProgress();
+            }
+        });
+
+        this.device.on('AVTransport', (newValue) => {
+            const mode = newValue.CurrentPlayMode;
+            this.updatePlayMode(mode);
+            this.updateProp('crossfade', newValue.CurrentCrossfadeMode != '0');
+            if(!newValue.CurrentTrackMetaDataParsed) {
                 this.updateProp('track', '');
                 this.updateProp('artist', '');
                 this.updateProp('album', '');
@@ -300,6 +319,10 @@ class Speaker extends Device {
                 this.updateProp('progress', 0);
                 this.clearProgress();
             }
+        });
+
+        this.device.on('Muted', (muted) => {
+            this.updateProp('muted', muted);
         });
 
         //TODO update group action
@@ -369,30 +392,30 @@ class Speaker extends Device {
     async updateAlbumArt(url) {
         const artUrl = path.join(getMediaPath(), this.id, 'album.png');
         if(url) {
-            console.log(url);
             const response = await fetch(url);
             const blob = await response.buffer();
-            await new Promise((resolve, reject) => {
-                fs.writeFile(artUrl, blob, (e) => {
-                    if(e) {
-                        reject(e);
-                    }
-                    else {
-                        resolve();
-                    }
+            if(imageType(blob).mime == 'image/png') {
+                await new Promise((resolve, reject) => {
+                    fs.writeFile(artUrl, blob, (e) => {
+                        if(e) {
+                            reject(e);
+                        }
+                        else {
+                            resolve();
+                        }
+                    });
                 });
-            });
+            }
+            else {
+                const px = await pixels(blob);
+                await output(px, artUrl);
+            }
         }
         else {
-            console.log("no art");
-            await new Promise((resolve, reject) => {
+            fs.stat
+            await new Promise((resolve) => {
                 fs.unlink(artUrl, (e) => {
-                    if(e) {
-                        reject(e);
-                    }
-                    else {
-                        resolve();
-                    }
+                    resolve();
                 });
             });
         }
@@ -414,12 +437,17 @@ class Speaker extends Device {
                     await this.device.play();
                 }
                 else {
-                    console.log("pausing");
                     await this.device.pause();
                 }
             break;
             case 'volume':
-                //TODO reject if volume is fixed.
+                if(this.supportsFixedVolume && await this.getFixedVolume()) {
+                    this.findProperty('volume').readOnly = true;
+                    throw new Error("Volume is fixed");
+                }
+                else {
+                    this.findProperty('volume').readOnly = false;
+                }
                 await this.device.setVolume(newValue);
             break;
             case 'shuffle':
@@ -444,6 +472,9 @@ class Speaker extends Device {
                     throw "Can't change progress without track";
                 }
             break;
+            case 'muted':
+                await this.device.setMuted(newValue);
+            break;
         }
         super.notifyPropertyChanged(property);
     }
@@ -460,6 +491,11 @@ class Speaker extends Device {
                 await this.device.previous();
                 action.finish();
             break;
+            case "stop":
+                action.start();
+                await this.device.stop();
+                action.finish();
+                break;
             case "group":
                 action.start();
                 //TODO only execute if the new group config is different from the current one.
