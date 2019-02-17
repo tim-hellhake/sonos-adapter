@@ -74,7 +74,7 @@ class Speaker extends Device {
             "@type": "LevelProperty"
         }, 100));
         this.properties.set('playing', new Property(this, 'playing', {
-            title: "Play/Pause",
+            title: "Playing",
             type: 'boolean',
             "@type": "BooleanProperty"
         }, false));
