@@ -1,6 +1,6 @@
 'use strict';
 
-const { Sonos, DeviceDiscovery } = require("sonos");
+const { DeviceDiscovery } = require("sonos");
 const Speaker = require("./speaker");
 
 //TODO cache state
@@ -35,15 +35,15 @@ class SonosAdapter extends Adapter {
     * @return {Promise} which resolves to the device added.
     */
     async addDevice(device) {
-        if(device.host in this.devices) {
-            throw 'Device: ' + device.host + ' already exists.';
+        const deviceDescription = await device.deviceDescription();
+        if(deviceDescription.serialNum in this.devices) {
+            throw 'Device: ' + deviceDescription.serialNum + ' already exists.';
         }
         else {
-            const deviceDescription = await device.deviceDescription();
             // Don't try to add BRIDGEs
             //TODO should also avoid adding BOOSTs
             if(deviceDescription.zoneType != '4') {
-                const speaker = new Speaker(this, device.host, device);
+                const speaker = new Speaker(this, deviceDescription.serialNum, device);
                 return speaker.ready;
             }
         }
@@ -51,19 +51,15 @@ class SonosAdapter extends Adapter {
 
     /**
     * @param {String} deviceId ID of the device to remove.
-    * @return {Promise} which resolves to the device removed.
     */
     removeDevice(deviceId) {
-        return new Promise((resolve, reject) => {
-            const device = this.devices[deviceId];
-            if(device) {
-                this.handleDeviceRemoved(device);
-                resolve(device);
-            }
-            else {
-                reject('Device: ' + deviceId + ' not found.');
-            }
-        });
+        const device = this.devices[deviceId];
+        if(device) {
+            this.handleDeviceRemoved(device);
+        }
+        else {
+            throw new Error('Device: ' + deviceId + ' not found.');
+        }
     }
 
     /**
@@ -92,12 +88,14 @@ class SonosAdapter extends Adapter {
     * @param {Object} device Device to unpair with
     */
     removeThing(device) {
-        this.removeDevice(device.id).then(() => {
+        try {
+            this.removeDevice(device.id);
             console.log('SonosAdapter: device:', device.id, 'was unpaired.');
-        }).catch((err) => {
+        }
+        catch(err) {
             console.error('SonosAdapter: unpairing', device.id, 'failed');
             console.error(err);
-        });
+        }
     }
 
     /**

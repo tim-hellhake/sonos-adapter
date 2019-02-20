@@ -60,11 +60,11 @@ function getMediaPath() {
 }
 
 class Speaker extends Device {
-    constructor(adapter, ip, device) {
-        super(adapter, ip);
+    constructor(adapter, id, device) {
+        super(adapter, id);
 
         this.device = device;
-        this.name = ip;
+        this.name = device.host;
         this.type = Constants.THING_TYPE_UNKNOWN_THING;
 
         this.properties.set('volume', new Property(this, 'volume', {
@@ -280,24 +280,26 @@ class Speaker extends Device {
                     this.updateProp('progress', (this.currentPosition / this.currentDuration) * 100);
                 }
                 else {
-                    this.device.currentTrack().then((currentTrack) => {
-                        this.currentDuration = currentTrack.duration;
-                        this.currentPosition = currentTrack.position;
-                        if(this.currentDuration != 0) {
-                            this.updateProp('progress', (currentTrack.position / currentTrack.duration) * 100);
-                            const isPlaying = this.findProperty('playing').value;
-                            if(isPlaying && !this.progressInterval) {
-                                this.progressInterval = setInterval(() => this.updateProgress(), 1000);
+                    this.device.currentTrack()
+                        .then((currentTrack) => {
+                            this.currentDuration = currentTrack.duration;
+                            this.currentPosition = currentTrack.position;
+                            if(this.currentDuration != 0) {
+                                this.updateProp('progress', (currentTrack.position / currentTrack.duration) * 100);
+                                const isPlaying = this.findProperty('playing').value;
+                                if(isPlaying && !this.progressInterval) {
+                                    this.progressInterval = setInterval(() => this.updateProgress(), 1000);
+                                }
+                                else if(!isPlaying) {
+                                    this.clearProgress();
+                                }
                             }
-                            else if(!isPlaying) {
+                            else {
+                                this.updateProp('progress', 0);
                                 this.clearProgress();
                             }
-                        }
-                        else {
-                            this.updateProp('progress', 0);
-                            this.clearProgress();
-                        }
-                    });
+                        })
+                        .catch(() => this.assumeDisconnected());
                 }
             }
             else {
@@ -326,7 +328,6 @@ class Speaker extends Device {
         });
 
         //TODO update group action
-        //TODO reconnect when event listening is lost?
 
         if(shouldGetVolume) {
             this.device.on('Volume', (volume) => {
@@ -431,88 +432,103 @@ class Speaker extends Device {
 
     async notifyPropertyChanged(property) {
         const newValue = property.value;
-        switch(property.name) {
-            case 'playing':
-                if(newValue) {
-                    await this.device.play();
-                }
-                else {
-                    await this.device.pause();
-                }
-            break;
-            case 'volume':
-                if(this.supportsFixedVolume && await this.getFixedVolume()) {
-                    this.findProperty('volume').readOnly = true;
-                    throw new Error("Volume is fixed");
-                }
-                else {
-                    this.findProperty('volume').readOnly = false;
-                }
-                await this.device.setVolume(newValue);
-            break;
-            case 'shuffle':
-            case 'repeat':
-                await this.device.setPlayMode(
-                    getModeFromProps(
-                        this.properties.get('shuffle').value,
-                        this.properties.get('repeat').value
-                    )
-                );
-            break;
-            case 'crossfade':
-                await this.avTransport.SetCrossfadeMode({ InstanceID: 0, CrossfadeMode: newValue });
-            break;
-            case 'progress':
-                if(this.currentDuration > 0) {
-                    const newPosition = Math.floor((newValue / 100) * this.currentDuration);
-                    await this.device.seek(newPosition);
-                    this.currentPosition = newPosition;
-                }
-                else {
-                    throw "Can't change progress without track";
-                }
-            break;
-            case 'muted':
-                await this.device.setMuted(newValue);
-            break;
+        try {
+            switch(property.name) {
+                case 'playing':
+                    if(newValue) {
+                        await this.device.play();
+                    }
+                    else {
+                        await this.device.pause();
+                    }
+                break;
+                case 'volume':
+                    if(this.supportsFixedVolume && await this.getFixedVolume()) {
+                        this.findProperty('volume').readOnly = true;
+                        throw new Error("Volume is fixed");
+                    }
+                    else {
+                        this.findProperty('volume').readOnly = false;
+                    }
+                    await this.device.setVolume(newValue);
+                break;
+                case 'shuffle':
+                case 'repeat':
+                    await this.device.setPlayMode(
+                        getModeFromProps(
+                            this.properties.get('shuffle').value,
+                            this.properties.get('repeat').value
+                        )
+                    );
+                break;
+                case 'crossfade':
+                    await this.avTransport.SetCrossfadeMode({ InstanceID: 0, CrossfadeMode: newValue });
+                break;
+                case 'progress':
+                    if(this.currentDuration > 0) {
+                        const newPosition = Math.floor((newValue / 100) * this.currentDuration);
+                        await this.device.seek(newPosition);
+                        this.currentPosition = newPosition;
+                    }
+                    else {
+                        throw "Can't change progress without track";
+                    }
+                break;
+                case 'muted':
+                    await this.device.setMuted(newValue);
+                break;
+            }
+            super.notifyPropertyChanged(property);
         }
-        super.notifyPropertyChanged(property);
+        catch(e) {
+            this.assumeDisconnected();
+        }
     }
 
     async performAction(action) {
-        switch(action.name) {
-            case "next":
-                action.start();
-                await this.device.next();
-                action.finish();
-            break;
-            case "prev":
-                action.start();
-                await this.device.previous();
-                action.finish();
-            break;
-            case "stop":
-                action.start();
-                await this.device.stop();
-                action.finish();
+        try {
+            switch(action.name) {
+                case "next":
+                    action.start();
+                    await this.device.next();
+                    action.finish();
                 break;
-            case "group":
-                action.start();
-                //TODO only execute if the new group config is different from the current one.
-                await this.device.leaveGroup();
-                const topo = await this.device.getAllGroups();
-                const topoCoordinators = topo.map((z) => z.ZoneGroupMember.find((m) => m.UUID === z.Coordinator));
-                for(const input in action.input) {
-                    if(action.input[input]) {
-                        const deviceInfo = topoCoordinators.find((z) => z.ZoneName.toLowerCase() == input.toLowerCase());
-                        const deviceIP = deviceInfo.Location.match(/^http:\/\/([^:]+)/)[1];
-                        const dev = new Sonos(deviceIP);
-                        await dev.joinGroup(this.name);
+                case "prev":
+                    action.start();
+                    await this.device.previous();
+                    action.finish();
+                break;
+                case "stop":
+                    action.start();
+                    await this.device.stop();
+                    action.finish();
+                    break;
+                case "group":
+                    action.start();
+                    //TODO only execute if the new group config is different from the current one.
+                    await this.device.leaveGroup();
+                    const topo = await this.device.getAllGroups();
+                    const topoCoordinators = topo.map((z) => z.ZoneGroupMember.find((m) => m.UUID === z.Coordinator));
+                    for(const input in action.input) {
+                        if(action.input[input]) {
+                            const deviceInfo = topoCoordinators.find((z) => z.ZoneName.toLowerCase() == input.toLowerCase());
+                            const deviceIP = deviceInfo.Location.match(/^http:\/\/([^:]+)/)[1];
+                            const dev = new Sonos(deviceIP);
+                            await dev.joinGroup(this.name);
+                        }
                     }
-                }
-                action.finish();
-            break;
+                    action.finish();
+                break;
+            }
         }
+        catch(e) {
+            this.assumeDisconnected();
+        }
+    }
+
+    assumeDisconnected() {
+        this.adapter.removeThing(this);
+        this.adapter.startPairing(60);
     }
 }
 module.exports = Speaker;
