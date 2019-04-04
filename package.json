@@ -28,11 +28,11 @@
   "dependencies": {
     "image-output": "^2.4.0",
     "image-pixels": "^2.2.2",
-    "image-type": "^3.0.0",
+    "image-type": "^3.1.0",
     "is-browser": "^2.1.0",
     "mkdirp": "^0.5.1",
     "node-fetch": "^2.3.0",
-    "sonos": "^1.9.0"
+    "sonos": "^1.10.0"
   },
   "files": [
     "adapter.js",
