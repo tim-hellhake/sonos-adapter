@@ -28,7 +28,7 @@
   "dependencies": {
     "image-output": "^2.4.0",
     "image-pixels": "^2.2.2",
-    "image-type": "^4.0.0",
+    "image-type": "^4.1.0",
     "is-browser": "^2.1.0",
     "mkdirp": "^0.5.1",
     "node-fetch": "^2.3.0",
