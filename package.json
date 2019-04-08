@@ -32,7 +32,7 @@
     "is-browser": "^2.1.0",
     "mkdirp": "^0.5.1",
     "node-fetch": "^2.3.0",
-    "sonos": "^1.10.0"
+    "sonos": "^1.10.1"
   },
   "files": [
     "adapter.js",
