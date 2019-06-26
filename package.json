@@ -1,7 +1,7 @@
 {
   "name": "sonos-adapter",
   "display_name": "Sonos",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Sonos adapter for the Mozilla IoT Gateway.",
   "main": "adapter.js",
   "scripts": {
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/freaktechnik/sonos-adapter.git"
+    "url": "git+https://github.com/tim-hellhake/sonos-adapter.git"
   },
   "keywords": [
     "mozilla",
@@ -22,11 +22,11 @@
   "author": "Tim Hellhake",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/freaktechnik/sonos-adapter/issues"
+    "url": "https://github.com/tim-hellhake/sonos-adapter/issues"
   },
-  "homepage": "https://github.com/freaktechnik/sonos-adapter#readme",
+  "homepage": "https://github.com/tim-hellhake/sonos-adapter#readme",
   "dependencies": {
-    "image-output": "git+https://github.com/freaktechnik/image-output.git#4296a02fe31d9c52245f988dba859ae8c8991d97",
+    "image-output": "git+https://github.com/tim-hellhake/image-output.git#4296a02fe31d9c52245f988dba859ae8c8991d97",
     "image-pixels": "^2.2.2",
     "image-type": "^4.1.0",
     "is-browser": "^2.1.0",
