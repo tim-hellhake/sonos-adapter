@@ -1,7 +1,7 @@
 {
   "name": "sonos-adapter",
   "display_name": "Sonos",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Sonos adapter for the Mozilla IoT Gateway.",
   "main": "adapter.js",
   "scripts": {
@@ -19,7 +19,7 @@
     "adapter",
     "sonos"
   ],
-  "author": "Martin Giger",
+  "author": "Tim Hellhake",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/freaktechnik/sonos-adapter/issues"

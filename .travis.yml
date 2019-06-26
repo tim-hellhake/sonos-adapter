@@ -1,0 +1,21 @@
+language: node_js
+node_js:
+- lts/carbon
+
+script:
+  - npm run lint
+
+before_deploy:
+  - node -e "if(require('./package.json').version !== '$TRAVIS_TAG') { console.error('Git tag does not match package version'); process.exit(1); }"
+  - ./build.sh
+
+deploy:
+  provider: releases
+  api_key: $GITHUB_API_KEY
+  skip_cleanup: true
+  file_glob: true
+  file:
+    - "*.tgz"
+    - "*.tgz.sha256sum"
+  on:
+    tags: true
