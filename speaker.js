@@ -12,20 +12,10 @@ const output = require("image-output");
 const imageType = require("image-type");
 const pixels = require("image-pixels");
 
-let Device, Constants;
-try {
-    Device = require('../device');
-    Constants = require('../addon-constants');
-}
-catch (e) {
-    if (e.code !== 'MODULE_NOT_FOUND') {
-        throw e;
-    }
-
-    const gwa = require('gateway-addon');
-    Device = gwa.Device;
-    Constants = gwa.Constants;
-}
+const {
+    Constants,
+    Device,
+} = require('gateway-addon');
 
 function getModeFromProps(shuffle, repeat) {
     if(!shuffle && repeat === 'None') {
