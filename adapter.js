@@ -1,22 +1,10 @@
 'use strict';
 
+const { Adapter } = require('gateway-addon');
 const { DeviceDiscovery } = require("sonos");
 const Speaker = require("./speaker");
 
 //TODO cache state
-
-let Adapter;
-try {
-    Adapter = require('../adapter');
-}
-catch (e) {
-    if (e.code !== 'MODULE_NOT_FOUND') {
-        throw e;
-    }
-
-    const gwa = require('gateway-addon');
-    Adapter = gwa.Adapter;
-}
 
 class SonosAdapter extends Adapter {
     constructor(addonManager, packageName) {

@@ -1,17 +1,6 @@
 'use strict';
 
-let Property;
-try {
-    Property = require('../property');
-}
-catch (e) {
-    if (e.code !== 'MODULE_NOT_FOUND') {
-        throw e;
-    }
-
-    const gwa = require('gateway-addon');
-    Property = gwa.Property;
-}
+const { Property } = require('gateway-addon');
 
 class SonosProperty extends Property {
     constructor(device, name, description, value) {
