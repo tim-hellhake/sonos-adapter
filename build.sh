@@ -15,5 +15,5 @@ find node_modules -type f -exec sha256sum {} \; >> package/SHA256SUMS
 cp -r node_modules ./package
 tar czf ${TARFILE} package
 rm -rf package
-sha256sum ${TARFILE}
+sha256sum ${TARFILE} > ${TARFILE}.sha256sum
 echo "Created ${TARFILE}"
