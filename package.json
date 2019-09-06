@@ -30,6 +30,7 @@
     "image-pixels": "^2.2.2",
     "image-type": "^4.1.0",
     "is-browser": "^2.1.0",
+    "jpeg-js": "^0.3.6",
     "mkdirp": "^0.5.1",
     "node-fetch": "^2.6.0",
     "sonos": "^1.12.2"
@@ -48,7 +49,26 @@
       "max": 2
     },
     "plugin": true,
-    "exec": "{nodeLoader} {path}"
+    "exec": "{nodeLoader} {path}",
+    "config": {
+      "addresses": []
+    },
+    "schema": {
+      "type": "object",
+      "required": [
+        "addresses"
+      ],
+      "properties": {
+        "addresses": {
+          "type": "array",
+          "description": "List of IP addresses of speakers",
+          "items": {
+            "type": "string",
+            "description": "IP address"
+          }
+        }
+      }
+    }
   },
   "devDependencies": {
     "nlf": "^2.1.1"

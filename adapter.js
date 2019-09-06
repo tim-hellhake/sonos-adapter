@@ -1,7 +1,7 @@
 'use strict';
 
-const { Adapter } = require('gateway-addon');
-const { DeviceDiscovery } = require("sonos");
+const { Adapter, Database } = require('gateway-addon');
+const { DeviceDiscovery, Sonos } = require("sonos");
 const Speaker = require("./speaker");
 
 //TODO cache state
@@ -11,10 +11,26 @@ class SonosAdapter extends Adapter {
         super(addonManager, 'SonosAdapter', packageName);
         addonManager.addAdapter(this);
 
-        DeviceDiscovery({
-            timeout:  20000
-        }, (device) => {
-            this.addDevice(device).catch(console.warn);
+        const db = new Database(packageName);
+        db.open().then(() => {
+            return db.loadConfig();
+        }).then((config) => {
+            if (config && config.addresses) {
+                for (const addr of config.addresses) {
+                    const device = new Sonos(addr);
+                    this.addDevice(device).catch(console.warn);
+                }
+            }
+
+            db.close();
+        }).catch((e) => {
+            console.error('Failed to open database:', e);
+        }).then(() => {
+            DeviceDiscovery({
+                timeout:  20000
+            }, (device) => {
+                this.addDevice(device).catch(console.warn);
+            });
         });
     }
 
@@ -96,7 +112,7 @@ class SonosAdapter extends Adapter {
 }
 
 function loadAdapter(addonManager, manifest, _errorCallback) {
-  const adapter = new SonosAdapter(addonManager, manifest.name);
+    const adapter = new SonosAdapter(addonManager, manifest.name);
 }
 
 module.exports = loadAdapter;
