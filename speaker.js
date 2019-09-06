@@ -11,6 +11,7 @@ const fetch = require("node-fetch");
 const output = require("image-output");
 const imageType = require("image-type");
 const pixels = require("image-pixels");
+const jpeg = require('jpeg-js');
 
 const {
     Constants,
@@ -157,7 +158,7 @@ class Speaker extends Device {
 
     async fetchProperties() {
         const name = await this.device.getName();
-        this.setName(name);
+        this.setTitle(name);
 
         this.supportsFixedVolume = await this.getSupportsFixedVolume();
         let shouldGetVolume = true;
@@ -382,32 +383,56 @@ class Speaker extends Device {
 
     async updateAlbumArt(url) {
         const artUrl = path.join(getMediaPath(), this.id, 'album.png');
-        if(url) {
-            const response = await fetch(url);
-            const blob = await response.buffer();
-            if(imageType(blob).mime == 'image/png') {
-                await new Promise((resolve, reject) => {
-                    fs.writeFile(artUrl, blob, (e) => {
-                        if(e) {
-                            reject(e);
-                        }
-                        else {
-                            resolve();
-                        }
-                    });
-                });
+        let parsed = false;
+
+        try {
+            if(url) {
+                const response = await fetch(url);
+                const blob = await response.buffer();
+                const type = imageType(blob);
+
+                if (type) {
+                    if (type.mime === 'image/png') {
+                        await new Promise((resolve, reject) => {
+                            fs.writeFile(artUrl, blob, (e) => {
+                                if(e) {
+                                    reject(e);
+                                }
+                                else {
+                                    resolve();
+                                }
+                            });
+                        });
+                        parsed = true;
+                    }
+                    else if (type.mime === 'image/jpeg') {
+                        const imageData = jpeg.decode(blob);
+                        const px = await pixels(
+                            blob,
+                            {
+                                width: imageData.width,
+                                height: imageData.height,
+                            }
+                        );
+                        await output(px, artUrl);
+                        parsed = true;
+                    }
+                }
             }
-            else {
-                const px = await pixels(blob);
-                await output(px, artUrl);
-            }
+        } catch (e) {
+            console.warn(e);
         }
-        else {
-            fs.stat
+
+        if (!parsed) {
             await new Promise((resolve) => {
-                fs.unlink(artUrl, (e) => {
+                if (fs.existsSync, artUrl) {
+                    fs.unlink(artUrl, (e) => {
+                        resolve();
+                    });
+                }
+                else {
                     resolve();
-                });
+                }
             });
         }
     }
