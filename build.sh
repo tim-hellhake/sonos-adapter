@@ -1,4 +1,4 @@
-#!/usr/bin/env bash -e
+#!/usr/bin/bash -e
 
 rm -rf *.tgz package/
 TARFILE=$(npm pack)
