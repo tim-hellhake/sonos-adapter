@@ -41,7 +41,8 @@
     "speaker.js",
     "readonly-property.js",
     "SHA256SUMS",
-    "LICENSE"
+    "LICENSE",
+    "manifest.json"
   ],
   "moziot": {
     "api": {

@@ -1,0 +1,39 @@
+{
+    "id": "sonos-adapter",
+    "short_name": "Sonos",
+    "name": "Sonos",
+    "version": "0.7.0",
+    "author": "Tim Hellhake",
+    "description": "Sonos adapter for the Mozilla IoT Gateway.",
+    "homepage_url": "https://github.com/tim-hellhake/sonos-adapter#readme",
+    "license": "MIT",
+    "manifest_version": 1,
+    "gateway_specific_settings": {
+        "webthings": {
+            "exec": "{nodeLoader} {path}",
+            "primary_type": "adapter",
+            "strict_min_version": "0.10.0"
+        }
+    },
+    "options": {
+        "default": {
+            "addresses": []
+        },
+        "schema": {
+            "type": "object",
+            "required": [
+                "addresses"
+            ],
+            "properties": {
+                "addresses": {
+                    "type": "array",
+                    "description": "List of IP addresses of speakers",
+                    "items": {
+                        "type": "string",
+                        "description": "IP address"
+                    }
+                }
+            }
+        }
+    }
+}
