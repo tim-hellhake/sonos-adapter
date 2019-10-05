@@ -12,11 +12,7 @@ const output = require("image-output");
 const imageType = require("image-type");
 const pixels = require("image-pixels");
 const jpeg = require('jpeg-js');
-
-const {
-    Constants,
-    Device,
-} = require('gateway-addon');
+const { Device } = require('gateway-addon');
 
 function getModeFromProps(shuffle, repeat) {
     if(!shuffle && repeat === 'None') {
@@ -56,7 +52,6 @@ class Speaker extends Device {
 
         this.device = device;
         this.name = device.host;
-        this.type = Constants.THING_TYPE_UNKNOWN_THING;
 
         this.properties.set('volume', new Property(this, 'volume', {
             title: "Volume",
