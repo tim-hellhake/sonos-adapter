@@ -3,7 +3,7 @@
   "display_name": "Sonos",
   "version": "0.7.5",
   "description": "Sonos adapter for the Mozilla IoT Gateway.",
-  "main": "lib/adapter.js",
+  "main": "lib/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "licenses": "./gather-licenses.js",
