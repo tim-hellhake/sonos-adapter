@@ -540,7 +540,7 @@ export class Speaker extends Device {
                         if (action.input[input]) {
                             const deviceInfo = topoCoordinators.find((z: any) => z.ZoneName.toLowerCase() == input.toLowerCase());
                             const deviceIP = deviceInfo.Location.match(/^http:\/\/([^:]+)/)[1];
-                            const dev = new Sonos(deviceIP);
+                            const dev: any = new Sonos(deviceIP);
                             await dev.joinGroup(this.name);
                         }
                     }
