@@ -8,7 +8,7 @@
 
 import { SonosProperty } from './property';
 import { ReadonlyProperty } from './readonly-property';
-const { Sonos } = require('sonos');
+import { Sonos } from 'sonos';
 import os from 'os';
 import mkdirp from 'mkdirp';
 import fs from 'fs';
