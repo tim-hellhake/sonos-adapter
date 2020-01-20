@@ -270,11 +270,16 @@ export class Speaker extends Device {
             this.clearProgress();
         });
 
-        this.device.on('CurrentTrack', (track: any) => {
+        this.device.on('CurrentTrack', async (track: any) => {
             this.updateProp('track', track.title);
             this.updateProp('artist', track.artist);
             this.updateProp('album', track.album);
-            this.updateAlbumArt(track.albumArtURI).catch(console.error);
+
+            try {
+                this.updateAlbumArt(track.albumArtURI);
+            } catch (e) {
+                console.error(e)
+            }
 
             if (!isNaN(track.duration)) {
                 this.currentDuration = track.duration;
@@ -283,26 +288,29 @@ export class Speaker extends Device {
                     this.updateProp('progress', (this.currentPosition / this.currentDuration) * 100);
                 }
                 else {
-                    this.device.currentTrack()
-                        .then((currentTrack: any) => {
-                            this.currentDuration = currentTrack.duration;
-                            this.currentPosition = currentTrack.position;
-                            if (this.currentDuration != 0) {
-                                this.updateProp('progress', (currentTrack.position / currentTrack.duration) * 100);
-                                const isPlaying = this.findProperty('playing').value;
-                                if (isPlaying && !this.progressInterval) {
-                                    this.progressInterval = setInterval(() => this.updateProgress(), 1000);
-                                }
-                                else if (!isPlaying) {
-                                    this.clearProgress();
-                                }
+                    const currentTrack = await this.device.currentTrack();
+
+                    try {
+                        this.currentDuration = currentTrack.duration;
+                        this.currentPosition = currentTrack.position;
+
+                        if (this.currentDuration != 0) {
+                            this.updateProp('progress', (currentTrack.position / currentTrack.duration) * 100);
+                            const isPlaying = this.findProperty('playing').value;
+                            if (isPlaying && !this.progressInterval) {
+                                this.progressInterval = setInterval(() => this.updateProgress(), 1000);
                             }
-                            else {
-                                this.updateProp('progress', 0);
+                            else if (!isPlaying) {
                                 this.clearProgress();
                             }
-                        })
-                        .catch(() => this.assumeDisconnected());
+                        }
+                        else {
+                            this.updateProp('progress', 0);
+                            this.clearProgress();
+                        }
+                    } catch (e) {
+                        this.assumeDisconnected()
+                    }
                 }
             }
             else {
