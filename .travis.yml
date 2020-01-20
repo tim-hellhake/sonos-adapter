@@ -7,7 +7,7 @@ script:
 
 before_deploy:
   - node -e "if(require('./package.json').version !== '$TRAVIS_TAG') { console.error('Git tag does not match package version'); process.exit(1); }"
-  - ./build.sh
+  - ./package.sh
 
 deploy:
   provider: releases

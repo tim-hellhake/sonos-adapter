@@ -1,108 +1,118 @@
 'use strict';
 
-const Property = require('./property');
-const ReadonlyProperty = require('./readonly-property');
-const { Sonos } = require("sonos");
-const os = require("os");
-const mkdirp = require("mkdirp");
-const fs = require("fs");
-const path = require("path");
-const fetch = require("node-fetch");
-const output = require("image-output");
-const imageType = require("image-type");
-const pixels = require("image-pixels");
-const jpeg = require('jpeg-js');
-const { Device } = require('gateway-addon');
 
-function getModeFromProps(shuffle, repeat) {
-    if(!shuffle && repeat === 'None') {
+import { SonosProperty } from './property';
+import { ReadonlyProperty } from './readonly-property';
+const { Sonos } = require('sonos');
+import os from 'os';
+import mkdirp from 'mkdirp';
+import fs from 'fs';
+import path from 'path';
+import fetch from 'node-fetch';
+import output from 'image-output';
+import imageType from 'image-type';
+import pixels from 'image-pixels';
+import jpeg from 'jpeg-js';
+import { Device, Adapter } from 'gateway-addon';
+
+function getModeFromProps(shuffle: boolean, repeat: string) {
+    if (!shuffle && repeat === 'None') {
         return 'NORMAL';
     }
-    else if(repeat === 'None') {
+    else if (repeat === 'None') {
         return 'SHUFFLE_NOREPEAT';
     }
-    else if(shuffle && repeat === 'All') {
+    else if (shuffle && repeat === 'All') {
         return 'SHUFFLE';
     }
-    else if(repeat === 'All'){
+    else if (repeat === 'All') {
         return 'REPEAT_ALL';
     }
-    else if(shuffle && repeat === 'One') {
+    else if (shuffle && repeat === 'One') {
         return 'SHUFFLE_REPEAT_ONE';
     }
-    else if(repeat === 'One') {
+    else if (repeat === 'One') {
         return 'REPEAT_ONE';
     }
+
+    return '';
 }
 
 function getMediaPath() {
-    let dir;
-    if(process.env.hasOwnProperty('MOZIOT_HOME')) {
+    let dir: string | undefined;
+    if (process.env.hasOwnProperty('MOZIOT_HOME')) {
         dir = process.env.MOZIOT_HOME;
     }
     else {
         dir = path.join(os.homedir(), '.mozilla-iot');
     }
-    return path.join(dir, 'media', 'sonos');
+    return path.join(dir || '', 'media', 'sonos');
 }
 
-class Speaker extends Device {
-    constructor(adapter, id, device) {
+export class Speaker extends Device {
+    public ready: Promise<any>;
+    currentDuration: number;
+    currentPosition: number;
+    supportsFixedVolume?: boolean;
+    progressInterval?: NodeJS.Timeout;
+    _renderingControl: any;
+    _avTransport: any;
+
+    constructor(adapter: Adapter, id: string, private device: any) {
         super(adapter, id);
 
-        this.device = device;
         this.name = device.host;
 
-        this.properties.set('volume', new Property(this, 'volume', {
-            title: "Volume",
+        this.properties.set('volume', new SonosProperty(this, 'volume', {
+            title: 'Volume',
             type: 'integer',
             unit: 'percent',
-            "@type": "LevelProperty"
+            '@type': 'LevelProperty'
         }, 100));
-        this.properties.set('playing', new Property(this, 'playing', {
-            title: "Playing",
+        this.properties.set('playing', new SonosProperty(this, 'playing', {
+            title: 'Playing',
             type: 'boolean',
-            "@type": "BooleanProperty"
+            '@type': 'BooleanProperty'
         }, false));
-        this.properties.set('shuffle', new Property(this, 'shuffle', {
-            title: "Shuffle",
+        this.properties.set('shuffle', new SonosProperty(this, 'shuffle', {
+            title: 'Shuffle',
             type: 'boolean',
-            "@type": "BooleanProperty"
+            '@type': 'BooleanProperty'
         }, false));
-        this.properties.set('repeat', new Property(this, 'repeat', {
-            title: "Repeat",
+        this.properties.set('repeat', new SonosProperty(this, 'repeat', {
+            title: 'Repeat',
             type: 'string',
-            "@type": "EnumProperty",
+            '@type': 'EnumProperty',
             enum: [
                 'None',
                 'One',
                 'All',
             ]
         }, false));
-        this.properties.set('crossfade', new Property(this, 'crossfade', {
-            title: "Crossfade",
-            type: "boolean",
-            "@type": "BooleanProperty"
+        this.properties.set('crossfade', new SonosProperty(this, 'crossfade', {
+            title: 'Crossfade',
+            type: 'boolean',
+            '@type': 'BooleanProperty'
         }, false));
         this.properties.set('track', new ReadonlyProperty(this, 'track', {
-            title: "Track",
-            type: "string",
-            "@type": "StringProperty"
-        }, ''));
+            title: 'Track',
+            type: 'string',
+            '@type': 'StringProperty'
+        }));
         this.properties.set('album', new ReadonlyProperty(this, 'album', {
-            title: "Album",
-            type: "string",
-            "@type": "StringProperty"
-        }, ''));
+            title: 'Album',
+            type: 'string',
+            '@type': 'StringProperty'
+        }));
         this.properties.set('artist', new ReadonlyProperty(this, 'artist', {
-            title: "Artist",
-            type: "string",
-            "@type": "StringProperty"
-        }, ''));
-        this.properties.set('progress', new Property(this, 'progress', {
-            title: "Progress",
-            type: "number",
-            "@type": "LevelProperty"
+            title: 'Artist',
+            type: 'string',
+            '@type': 'StringProperty'
+        }));
+        this.properties.set('progress', new SonosProperty(this, 'progress', {
+            title: 'Progress',
+            type: 'number',
+            '@type': 'LevelProperty'
         }, 0));
         this.properties.set('albumArt', new ReadonlyProperty(this, 'albumArt', {
             title: 'Album art',
@@ -114,11 +124,11 @@ class Speaker extends Device {
                     rel: 'alternate'
                 }
             ]
-        }, undefined));
-        this.properties.set('muted', new Property(this, 'muted', {
-            title: "Muted",
-            type: "boolean",
-            "@type": "BooleanProperty"
+        }));
+        this.properties.set('muted', new SonosProperty(this, 'muted', {
+            title: 'Muted',
+            type: 'boolean',
+            '@type': 'BooleanProperty'
         }, false));
         this.currentDuration = 0;
         this.currentPosition = 0;
@@ -136,12 +146,12 @@ class Speaker extends Device {
         // Useful list of things: https://github.com/SoCo/SoCo/wiki/Sonos-UPnP-Services-and-Functions
 
         this.addAction('next', {
-            title: "Next",
-            description: "Skip current track and start playing next track in the queue"
+            title: 'Next',
+            description: 'Skip current track and start playing next track in the queue'
         });
         this.addAction('prev', {
-            title: "Previous",
-            description: "Play previous track in the queue"
+            title: 'Previous',
+            description: 'Play previous track in the queue'
         });
         this.addAction('stop', {
             title: 'Stop',
@@ -157,14 +167,14 @@ class Speaker extends Device {
 
         this.supportsFixedVolume = await this.getSupportsFixedVolume();
         let shouldGetVolume = true;
-        if(this.supportsFixedVolume) {
+        if (this.supportsFixedVolume) {
             const hasFixedVolume = await this.getFixedVolume();
             shouldGetVolume = !hasFixedVolume;
-            if(hasFixedVolume) {
+            if (hasFixedVolume) {
                 this.findProperty('volume').readOnly = true;
             }
         }
-        if(shouldGetVolume) {
+        if (shouldGetVolume) {
             const volume = await this.device.getVolume();
             this.updateProp('volume', volume * 100);
         }
@@ -174,7 +184,7 @@ class Speaker extends Device {
 
         await new Promise((resolve, reject) => {
             mkdirp(path.join(getMediaPath(), this.id), (e) => {
-                if(!e) {
+                if (!e) {
                     resolve();
                 }
                 else {
@@ -187,7 +197,7 @@ class Speaker extends Device {
         this.updateProp('playing', state === 'playing');
 
         const currentTrack = await this.device.currentTrack();
-        if(currentTrack.duration > 0) {
+        if (currentTrack.duration > 0) {
             this.updateProp('track', currentTrack.title);
             this.updateProp('album', currentTrack.album);
             this.updateProp('artist', currentTrack.artist);
@@ -195,7 +205,7 @@ class Speaker extends Device {
             await this.updateAlbumArt(currentTrack.albumArtURL);
             this.currentDuration = currentTrack.duration;
             this.currentPosition = currentTrack.position;
-            if(state === 'playing') {
+            if (state === 'playing') {
                 this.progressInterval = setInterval(() => this.updateProgress(), 1000);
             }
         }
@@ -208,24 +218,26 @@ class Speaker extends Device {
         this.updateProp('crossfade', crossFade);
 
         const groups = await this.device.getAllGroups();
+        const req: any[] = []
+        const props: { [key: string]: any } = {}
         const groupDetails = {
-            title: "Group/Ungroup",
-            description: "Group Sonos players",
+            title: 'Group/Ungroup',
+            description: 'Group Sonos players',
             input: {
-                type: "object",
-                required: [],
-                properties: {}
+                type: 'object',
+                required: req,
+                properties: props
             }
         };
         const playerInfo = await this.device.getZoneInfo();
         const groupId = `RINCON_${playerInfo.MACAddress.replace(/:/g, '')}`;
-        for(const zone of groups) {
-            if(!zone.ID.startsWith(groupId)) {
-                const zoneCoordinator = zone.ZoneGroupMember.find((m) => m.UUID === zone.Coordinator);
-                if(zoneCoordinator.Invisible != '1') {
+        for (const zone of groups) {
+            if (!zone.ID.startsWith(groupId)) {
+                const zoneCoordinator = zone.ZoneGroupMember.find((m: any) => m.UUID === zone.Coordinator);
+                if (zoneCoordinator.Invisible != '1') {
                     groupDetails.input.properties[zoneCoordinator.ZoneName] = {
-                        type: "boolean",
-                        default: zone.ZoneGroupMember.some((m) => m.UUID.startsWith(groupId))
+                        type: 'boolean',
+                        default: zone.ZoneGroupMember.some((m: any) => m.UUID.startsWith(groupId))
                     };
                     groupDetails.input.required.push(zoneCoordinator.ZoneName);
                 }
@@ -233,13 +245,13 @@ class Speaker extends Device {
         }
         this.addAction('group', groupDetails);
 
-        this.device.on('PlayState', (state) => {
+        this.device.on('PlayState', (state: any) => {
             const playing = state === 'playing';
             this.updateProp('playing', playing);
-            if(playing && !this.progressInterval && this.currentDuration) {
+            if (playing && !this.progressInterval && this.currentDuration) {
                 this.progressInterval = setInterval(() => this.updateProgress(), 1000);
             }
-            else if(!playing && this.progressInterval) {
+            else if (!playing && this.progressInterval) {
                 this.clearProgress();
             }
         });
@@ -253,30 +265,30 @@ class Speaker extends Device {
             this.clearProgress();
         });
 
-        this.device.on('CurrentTrack', (track) => {
+        this.device.on('CurrentTrack', (track: any) => {
             this.updateProp('track', track.title);
             this.updateProp('artist', track.artist);
             this.updateProp('album', track.album);
             this.updateAlbumArt(track.albumArtURI).catch(console.error);
 
-            if(!isNaN(track.duration)) {
+            if (!isNaN(track.duration)) {
                 this.currentDuration = track.duration;
-                if(track.position) {
+                if (track.position) {
                     this.currentPosition = track.position;
                     this.updateProp('progress', (this.currentPosition / this.currentDuration) * 100);
                 }
                 else {
                     this.device.currentTrack()
-                        .then((currentTrack) => {
+                        .then((currentTrack: any) => {
                             this.currentDuration = currentTrack.duration;
                             this.currentPosition = currentTrack.position;
-                            if(this.currentDuration != 0) {
+                            if (this.currentDuration != 0) {
                                 this.updateProp('progress', (currentTrack.position / currentTrack.duration) * 100);
                                 const isPlaying = this.findProperty('playing').value;
-                                if(isPlaying && !this.progressInterval) {
+                                if (isPlaying && !this.progressInterval) {
                                     this.progressInterval = setInterval(() => this.updateProgress(), 1000);
                                 }
-                                else if(!isPlaying) {
+                                else if (!isPlaying) {
                                     this.clearProgress();
                                 }
                             }
@@ -295,11 +307,11 @@ class Speaker extends Device {
             }
         });
 
-        this.device.on('AVTransport', (newValue) => {
+        this.device.on('AVTransport', (newValue: any) => {
             const mode = newValue.CurrentPlayMode;
             this.updatePlayMode(mode);
             this.updateProp('crossfade', newValue.CurrentCrossfadeMode != '0');
-            if(!newValue.CurrentTrackMetaDataParsed) {
+            if (!newValue.CurrentTrackMetaDataParsed) {
                 this.updateProp('track', '');
                 this.updateProp('artist', '');
                 this.updateProp('album', '');
@@ -309,14 +321,14 @@ class Speaker extends Device {
             }
         });
 
-        this.device.on('Muted', (muted) => {
+        this.device.on('Muted', (muted: any) => {
             this.updateProp('muted', muted);
         });
 
         //TODO update group action
 
-        if(shouldGetVolume) {
-            this.device.on('Volume', (volume) => {
+        if (shouldGetVolume) {
+            this.device.on('Volume', (volume: any) => {
                 this.updateProp('volume', volume);
             });
         }
@@ -324,26 +336,26 @@ class Speaker extends Device {
     }
 
     get renderingControl() {
-        if(!this._renderingControl) {
+        if (!this._renderingControl) {
             this._renderingControl = this.device.renderingControlService();
         }
         return this._renderingControl;
     }
 
     get avTransport() {
-        if(!this._avTransport) {
+        if (!this._avTransport) {
             this._avTransport = this.device.avTransportService();
         }
         return this._avTransport;
     }
 
     async getSupportsFixedVolume() {
-        const response = await this.renderingControl._request('GetSupportsOutputFixed', {InstanceID: 0});
+        const response = await this.renderingControl._request('GetSupportsOutputFixed', { InstanceID: 0 });
         return response.CurrentSupportsFixed != '0';
     }
 
     async getFixedVolume() {
-        const response = await this.renderingControl._request('GetOutputFixed', {InstanceID: 0});
+        const response = await this.renderingControl._request('GetOutputFixed', { InstanceID: 0 });
         return response.CurrentFixed != '0';
     }
 
@@ -352,13 +364,13 @@ class Speaker extends Device {
         return response.CurrrentCrossfadeMode != '0';
     }
 
-    updatePlayMode(mode) {
+    updatePlayMode(mode: string) {
         this.updateProp('shuffle', mode && mode.startsWith('SHUFFLE'));
         let repeat = 'None';
-        if(mode === 'REPEAT_ALL' || mode === 'SHUFFLE') {
+        if (mode === 'REPEAT_ALL' || mode === 'SHUFFLE') {
             repeat = 'All';
         }
-        else if(mode === 'REPEAT_ONE' || mode === 'SHUFFLE_REPEAT_ONE') {
+        else if (mode === 'REPEAT_ONE' || mode === 'SHUFFLE_REPEAT_ONE') {
             repeat = 'One';
         }
         this.updateProp('repeat', repeat);
@@ -370,18 +382,18 @@ class Speaker extends Device {
     }
 
     clearProgress() {
-        if(this.progressInterval) {
+        if (this.progressInterval) {
             clearInterval(this.progressInterval);
             this.progressInterval = undefined;
         }
     }
 
-    async updateAlbumArt(url) {
+    async updateAlbumArt(url: string) {
         const artUrl = path.join(getMediaPath(), this.id, 'album.png');
         let parsed = false;
 
         try {
-            if(url) {
+            if (url) {
                 const response = await fetch(url);
                 const blob = await response.buffer();
                 const type = imageType(blob);
@@ -390,7 +402,7 @@ class Speaker extends Device {
                     if (type.mime === 'image/png') {
                         await new Promise((resolve, reject) => {
                             fs.writeFile(artUrl, blob, (e) => {
-                                if(e) {
+                                if (e) {
                                     reject(e);
                                 }
                                 else {
@@ -421,7 +433,7 @@ class Speaker extends Device {
         if (!parsed) {
             await new Promise((resolve) => {
                 if (fs.existsSync, artUrl) {
-                    fs.unlink(artUrl, (e) => {
+                    fs.unlink(artUrl, (_e) => {
                         resolve();
                     });
                 }
@@ -432,50 +444,50 @@ class Speaker extends Device {
         }
     }
 
-    updateProp(propertyName, value) {
+    updateProp(propertyName: string, value: any) {
         const property = this.findProperty(propertyName);
-        if(property.value !== value) {
+        if (property.value !== value) {
             property.setCachedValue(value);
             super.notifyPropertyChanged(property);
         }
     }
 
-    async notifyPropertyChanged(property) {
+    async notifyPropertyChanged(property: any) {
         const newValue = property.value;
         try {
-            switch(property.name) {
+            switch (property.name) {
                 case 'playing':
-                    if(newValue) {
+                    if (newValue) {
                         await this.device.play();
                     }
                     else {
                         await this.device.pause();
                     }
-                break;
+                    break;
                 case 'volume':
-                    if(this.supportsFixedVolume && await this.getFixedVolume()) {
+                    if (this.supportsFixedVolume && await this.getFixedVolume()) {
                         this.findProperty('volume').readOnly = true;
-                        throw new Error("Volume is fixed");
+                        throw new Error('Volume is fixed');
                     }
                     else {
                         this.findProperty('volume').readOnly = false;
                     }
                     await this.device.setVolume(newValue);
-                break;
+                    break;
                 case 'shuffle':
                 case 'repeat':
                     await this.device.setPlayMode(
                         getModeFromProps(
-                            this.properties.get('shuffle').value,
-                            this.properties.get('repeat').value
+                            this.properties.get('shuffle')?.value,
+                            this.properties.get('repeat')?.value
                         )
                     );
-                break;
+                    break;
                 case 'crossfade':
                     await this.avTransport.SetCrossfadeMode({ InstanceID: 0, CrossfadeMode: newValue });
-                break;
+                    break;
                 case 'progress':
-                    if(this.currentDuration > 0) {
+                    if (this.currentDuration > 0) {
                         const newPosition = Math.floor((newValue / 100) * this.currentDuration);
                         await this.device.seek(newPosition);
                         this.currentPosition = newPosition;
@@ -483,55 +495,55 @@ class Speaker extends Device {
                     else {
                         throw "Can't change progress without track";
                     }
-                break;
+                    break;
                 case 'muted':
                     await this.device.setMuted(newValue);
-                break;
+                    break;
             }
             super.notifyPropertyChanged(property);
         }
-        catch(e) {
+        catch (e) {
             this.assumeDisconnected();
         }
     }
 
-    async performAction(action) {
+    async performAction(action: any) {
         try {
-            switch(action.name) {
-                case "next":
+            switch (action.name) {
+                case 'next':
                     action.start();
                     await this.device.next();
                     action.finish();
-                break;
-                case "prev":
+                    break;
+                case 'prev':
                     action.start();
                     await this.device.previous();
                     action.finish();
-                break;
-                case "stop":
+                    break;
+                case 'stop':
                     action.start();
                     await this.device.stop();
                     action.finish();
                     break;
-                case "group":
+                case 'group':
                     action.start();
                     //TODO only execute if the new group config is different from the current one.
                     await this.device.leaveGroup();
                     const topo = await this.device.getAllGroups();
-                    const topoCoordinators = topo.map((z) => z.ZoneGroupMember.find((m) => m.UUID === z.Coordinator));
-                    for(const input in action.input) {
-                        if(action.input[input]) {
-                            const deviceInfo = topoCoordinators.find((z) => z.ZoneName.toLowerCase() == input.toLowerCase());
+                    const topoCoordinators = topo.map((z: any) => z.ZoneGroupMember.find((m: any) => m.UUID === z.Coordinator));
+                    for (const input in action.input) {
+                        if (action.input[input]) {
+                            const deviceInfo = topoCoordinators.find((z: any) => z.ZoneName.toLowerCase() == input.toLowerCase());
                             const deviceIP = deviceInfo.Location.match(/^http:\/\/([^:]+)/)[1];
                             const dev = new Sonos(deviceIP);
                             await dev.joinGroup(this.name);
                         }
                     }
                     action.finish();
-                break;
+                    break;
             }
         }
-        catch(e) {
+        catch (e) {
             this.assumeDisconnected();
         }
     }

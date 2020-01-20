@@ -3,11 +3,11 @@
   "display_name": "Sonos",
   "version": "0.7.4",
   "description": "Sonos adapter for the Mozilla IoT Gateway.",
-  "main": "adapter.js",
+  "main": "lib/adapter.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "licenses": "./gather-licenses.js",
-    "build": "./build.sh"
+    "build": "tsc -p ."
   },
   "repository": {
     "type": "git",
@@ -36,10 +36,10 @@
     "sonos": "^1.12.6"
   },
   "files": [
-    "adapter.js",
-    "property.js",
-    "speaker.js",
-    "readonly-property.js",
+    "lib/adapter.js",
+    "lib/property.js",
+    "lib/speaker.js",
+    "lib/readonly-property.js",
     "SHA256SUMS",
     "LICENSE",
     "manifest.json"
@@ -72,6 +72,10 @@
     }
   },
   "devDependencies": {
-    "nlf": "^2.1.1"
+    "@types/mkdirp": "^0.5.2",
+    "@types/node": "^13.1.8",
+    "@types/node-fetch": "^2.5.4",
+    "nlf": "^2.1.1",
+    "typescript": "^3.7.5"
   }
 }
