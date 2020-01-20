@@ -33,7 +33,7 @@
     "jpeg-js": "^0.3.6",
     "mkdirp": "^0.5.1",
     "node-fetch": "^2.6.0",
-    "sonos": "^1.12.4"
+    "sonos": "^1.12.6"
   },
   "files": [
     "adapter.js",
