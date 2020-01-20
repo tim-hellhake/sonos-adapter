@@ -553,4 +553,3 @@ export class Speaker extends Device {
         this.adapter.startPairing(60);
     }
 }
-module.exports = Speaker;
