@@ -15,30 +15,41 @@ import { Speaker } from './speaker';
 export class SonosAdapter extends Adapter {
     private deviceDiscovery?: Discovery;
 
-    constructor(addonManager: any, packageName: any) {
+    constructor(addonManager: any, private packageName: any) {
         super(addonManager, 'SonosAdapter', packageName);
         addonManager.addAdapter(this);
+        this.init();
+    }
 
-        const db = new Database(packageName);
-        db.open().then(() => {
-            return db.loadConfig();
-        }).then((config) => {
-            if (config && config.addresses) {
-                for (const addr of config.addresses) {
-                    const device = new Sonos(addr);
-                    this.addDevice(device).catch(console.warn);
+    private async init() {
+        const db = new Database(this.packageName);
+        await db.open();
+        const config = await db.loadConfig();
+
+        if (config && config.addresses) {
+            for (const addr of config.addresses) {
+                const device = new Sonos(addr);
+                try {
+                    await this.addDevice(device);
+                } catch (e) {
+                    console.warn(e);
                 }
             }
+        }
 
-            db.close();
-        }).catch((e) => {
-            console.error('Failed to open database:', e);
-        }).then(() => {
-            DeviceDiscovery({
-                timeout: 20000
-            }, (device: any) => {
-                this.addDevice(device).catch(console.warn);
-            });
+        db.close();
+        this.discover(20000);
+    }
+
+    private discover(timeout: number) {
+        return DeviceDiscovery({
+            timeout
+        }, async (device: any) => {
+            try {
+                await this.addDevice(device);
+            } catch (e) {
+                console.warn(e);
+            }
         });
     }
 
@@ -80,11 +91,7 @@ export class SonosAdapter extends Adapter {
     * @param {Number} timeoutSeconds Number of seconds to run before timeout
     */
     startPairing(_timeoutSeconds: number) {
-        this.deviceDiscovery = DeviceDiscovery({
-            timeout: _timeoutSeconds * 1000
-        }, (device) => {
-            this.addDevice(device).catch(console.warn);
-        });
+        this.deviceDiscovery = this.discover(_timeoutSeconds * 1000);
     }
 
     /**
