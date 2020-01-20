@@ -6,7 +6,6 @@
 
 'use strict';
 
-
 import { SonosProperty } from './property';
 import { ReadonlyProperty } from './readonly-property';
 const { Sonos } = require('sonos');
