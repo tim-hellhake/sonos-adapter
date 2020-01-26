@@ -98,7 +98,11 @@ export class SonosAdapter extends Adapter {
     * Cancel the pairing/discovery process.
     */
     cancelPairing() {
-        this.deviceDiscovery?.destroy();
+        try {
+            this.deviceDiscovery?.destroy();
+        } catch (e) {
+            console.log(`Error on stopping device discovery: ${e}`)
+        }
     }
 
     /**
