@@ -181,7 +181,7 @@ export class Speaker extends Device {
         }
         if (shouldGetVolume) {
             const volume = await this.device.getVolume();
-            this.updateProp('volume', volume * 100);
+            this.updateProp('volume', volume);
         }
 
         const muted = await this.device.getMuted();
