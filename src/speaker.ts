@@ -8,7 +8,7 @@
 
 import { SonosProperty } from './property';
 import { ReadonlyProperty } from './readonly-property';
-import { Sonos } from 'sonos';
+import { Sonos, SpotifyRegion } from 'sonos';
 import os from 'os';
 import mkdirp from 'mkdirp';
 import fs from 'fs';
@@ -161,6 +161,18 @@ export class Speaker extends Device {
         this.addAction('stop', {
             title: 'Stop',
             description: 'Stop current playback'
+        });
+        this.addAction('playUri', {
+            title: 'Play URI',
+            description: 'Play the music from the given URI',
+            input: {
+                type: 'object',
+                properties: {
+                    uri: {
+                        type: 'string'
+                    }
+                }
+            }
         });
 
         this.ready = this.fetchProperties().then(() => this.adapter.handleDeviceAdded(this));
@@ -554,6 +566,19 @@ export class Speaker extends Device {
                     }
                     action.finish();
                     break;
+                case 'playUri':
+                    action.start();
+                    if (action.input.uri) {
+                        try {
+                            this.device.setSpotifyRegion(SpotifyRegion.EU)
+                            await this.device.play(action.input.uri);
+                        } catch (e) {
+                            console.log(`Could not play uri: ${e}`);
+                        }
+                    } else {
+                        console.log('Parameter uri is missing for action playUri');
+                    }
+                    action.finish();
             }
         }
         catch (e) {

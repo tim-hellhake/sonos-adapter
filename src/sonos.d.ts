@@ -14,4 +14,9 @@ declare module 'sonos' {
     class Sonos {
         constructor(address: any);
     }
+
+    enum SpotifyRegion {
+        EU,
+        US
+    }
 }
