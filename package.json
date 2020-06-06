@@ -44,33 +44,6 @@
     "LICENSE",
     "manifest.json"
   ],
-  "moziot": {
-    "api": {
-      "min": 2,
-      "max": 2
-    },
-    "plugin": true,
-    "exec": "{nodeLoader} {path}",
-    "config": {
-      "addresses": []
-    },
-    "schema": {
-      "type": "object",
-      "required": [
-        "addresses"
-      ],
-      "properties": {
-        "addresses": {
-          "type": "array",
-          "description": "List of IP addresses of speakers",
-          "items": {
-            "type": "string",
-            "description": "IP address"
-          }
-        }
-      }
-    }
-  },
   "devDependencies": {
     "@types/mkdirp": "^0.5.2",
     "@types/node": "^13.1.8",

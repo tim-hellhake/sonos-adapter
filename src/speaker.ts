@@ -63,7 +63,7 @@ export class Speaker extends Device {
     _renderingControl: any;
     _avTransport: any;
 
-    constructor(adapter: Adapter, id: string, private device: any) {
+    constructor(adapter: Adapter, id: string, private device: any, private manifest: any) {
         super(adapter, id);
 
         this.name = device.host;
@@ -570,7 +570,11 @@ export class Speaker extends Device {
                     action.start();
                     if (action.input.uri) {
                         try {
-                            this.device.setSpotifyRegion(SpotifyRegion.EU)
+                            const {
+                                spotifyRegion
+                            } = this.manifest.moziot.config;
+
+                            this.device.setSpotifyRegion(SpotifyRegion[spotifyRegion] || SpotifyRegion.EU)
                             await this.device.play(action.input.uri);
                         } catch (e) {
                             console.log(`Could not play uri: ${e}`);

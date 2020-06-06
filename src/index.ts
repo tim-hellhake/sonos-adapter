@@ -8,4 +8,4 @@
 
 import { SonosAdapter } from './adapter';
 
-export = (addonManager: any, manifest: any) => new SonosAdapter(addonManager, manifest.name);
+export = (addonManager: any, manifest: any) => new SonosAdapter(addonManager, manifest);

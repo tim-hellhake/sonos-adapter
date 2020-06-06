@@ -15,14 +15,14 @@ import { Speaker } from './speaker';
 export class SonosAdapter extends Adapter {
     private deviceDiscovery?: Discovery;
 
-    constructor(addonManager: any, private packageName: any) {
-        super(addonManager, 'SonosAdapter', packageName);
+    constructor(addonManager: any, private manifest: any) {
+        super(addonManager, 'SonosAdapter', manifest.name);
         addonManager.addAdapter(this);
         this.init();
     }
 
     private async init() {
-        const db = new Database(this.packageName);
+        const db = new Database(this.manifest.name);
         await db.open();
         const config = await db.loadConfig();
 
@@ -66,7 +66,7 @@ export class SonosAdapter extends Adapter {
             // Don't try to add BRIDGEs
             //TODO should also avoid adding BOOSTs
             if (deviceDescription.zoneType != '4') {
-                const speaker = new Speaker(this, deviceDescription.serialNum, device);
+                const speaker = new Speaker(this, deviceDescription.serialNum, device, this.manifest);
                 return speaker.ready;
             }
         }
