@@ -2,7 +2,7 @@
     "id": "sonos-adapter",
     "short_name": "Sonos",
     "name": "Sonos",
-    "version": "0.8.0",
+    "version": "0.9.0",
     "author": "Tim Hellhake",
     "description": "Sonos adapter for the Mozilla IoT Gateway.",
     "homepage_url": "https://github.com/tim-hellhake/sonos-adapter#readme",
