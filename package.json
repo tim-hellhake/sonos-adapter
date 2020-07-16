@@ -26,14 +26,14 @@
   },
   "homepage": "https://github.com/tim-hellhake/sonos-adapter#readme",
   "dependencies": {
-    "image-output": "^2.4.1",
+    "image-output": "^2.4.2",
     "image-pixels": "^2.2.2",
     "image-type": "^4.1.0",
     "is-browser": "^2.1.0",
-    "jpeg-js": "^0.3.6",
-    "mkdirp": "^0.5.1",
+    "jpeg-js": "^0.4.1",
+    "mkdirp": "^1.0.4",
     "node-fetch": "^2.6.0",
-    "sonos": "^1.12.6"
+    "sonos": "^1.13.2"
   },
   "files": [
     "lib/adapter.js",
@@ -46,9 +46,9 @@
   ],
   "devDependencies": {
     "@types/mkdirp": "^1.0.1",
-    "@types/node": "^14.0.14",
+    "@types/node": "^14.0.23",
     "@types/node-fetch": "^2.5.7",
     "nlf": "^2.1.1",
-    "typescript": "^3.9.5"
+    "typescript": "^3.9.7"
   }
 }
