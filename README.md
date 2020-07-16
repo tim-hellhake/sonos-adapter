@@ -1,6 +1,6 @@
 # sonos-adapter
 
-Sonos speaker adapter for the [Mozilla IoT gateway](https://iot.mozilla.org).
+Sonos speaker adapter for the [Mozilla WebThings gateway](https://iot.mozilla.org).
 
 Bridges the Sonos API to the gateway so it can interact with Sonos speakers.
 

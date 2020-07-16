@@ -4,7 +4,7 @@
     "name": "Sonos",
     "version": "0.9.0",
     "author": "Tim Hellhake",
-    "description": "Sonos adapter for the Mozilla IoT Gateway.",
+    "description": "Sonos adapter for the Mozilla WebThings Gateway.",
     "homepage_url": "https://github.com/tim-hellhake/sonos-adapter#readme",
     "license": "MIT",
     "manifest_version": 1,
