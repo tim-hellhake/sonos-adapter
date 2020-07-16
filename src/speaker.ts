@@ -199,16 +199,7 @@ export class Speaker extends Device {
         const muted = await this.device.getMuted();
         this.updateProp('muted', muted);
 
-        await new Promise((resolve, reject) => {
-            mkdirp(path.join(getMediaPath(), this.id), (e) => {
-                if (!e) {
-                    resolve();
-                }
-                else {
-                    reject(e);
-                }
-            });
-        });
+        await mkdirp(path.join(getMediaPath(), this.id));
 
         const state = await this.device.getCurrentState();
         this.updateProp('playing', state === 'playing');
