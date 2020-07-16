@@ -2,7 +2,7 @@
   "name": "sonos-adapter",
   "display_name": "Sonos",
   "version": "0.9.0",
-  "description": "Sonos adapter for the Mozilla IoT Gateway.",
+  "description": "Sonos adapter for the Mozilla WebThings Gateway.",
   "main": "lib/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
