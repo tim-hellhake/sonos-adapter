@@ -122,6 +122,7 @@ export class Speaker extends Device {
         this.properties.set('albumArt', new ReadonlyProperty(this, 'albumArt', {
             title: 'Album art',
             '@type': 'ImageProperty',
+            type: 'null',
             links: [
                 {
                     mediaType: 'image/png',
