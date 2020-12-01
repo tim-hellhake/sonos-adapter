@@ -51,6 +51,9 @@ declare module 'gateway-addon' {
 
     class Adapter {
         public devices: { [id: string]: Device };
+        public userProfile: {
+            mediaDir: string
+        }
 
         constructor(addonManager: any, id: string, packageName: string);
 
