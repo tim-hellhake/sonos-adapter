@@ -421,7 +421,7 @@ export class Speaker extends Device {
 
                 if (type) {
                     if (type.mime === 'image/png') {
-                        await new Promise((resolve, reject) => {
+                        await new Promise<void>((resolve, reject) => {
                             fs.writeFile(artUrl, blob, (e) => {
                                 if (e) {
                                     reject(e);
@@ -452,7 +452,7 @@ export class Speaker extends Device {
         }
 
         if (!parsed) {
-            await new Promise((resolve) => {
+            await new Promise<void>((resolve) => {
                 if (fs.existsSync, artUrl) {
                     fs.unlink(artUrl, (_e) => {
                         resolve();

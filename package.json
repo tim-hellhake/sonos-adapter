@@ -30,10 +30,10 @@
     "image-pixels": "^2.2.2",
     "image-type": "^4.1.0",
     "is-browser": "^2.1.0",
-    "jpeg-js": "^0.4.1",
+    "jpeg-js": "^0.4.2",
     "mkdirp": "^1.0.4",
-    "node-fetch": "^2.6.0",
-    "sonos": "^1.13.2"
+    "node-fetch": "^2.6.1",
+    "sonos": "^1.14.0"
   },
   "files": [
     "lib/adapter.js",
@@ -46,9 +46,9 @@
   ],
   "devDependencies": {
     "@types/mkdirp": "^1.0.1",
-    "@types/node": "^14.0.23",
+    "@types/node": "^14.14.10",
     "@types/node-fetch": "^2.5.7",
     "nlf": "^2.1.1",
-    "typescript": "^3.9.7"
+    "typescript": "^4.1.2"
   }
 }
