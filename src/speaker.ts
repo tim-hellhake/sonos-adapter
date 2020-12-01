@@ -43,7 +43,11 @@ function getModeFromProps(shuffle: boolean, repeat: string) {
     return '';
 }
 
-function getMediaPath() {
+function getMediaPath(mediaDir: string | undefined) {
+    if (mediaDir) {
+        return path.join(mediaDir, 'sonos');
+    }
+
     let dir: string | undefined;
     if (process.env.hasOwnProperty('MOZIOT_HOME')) {
         dir = process.env.MOZIOT_HOME;
@@ -200,7 +204,7 @@ export class Speaker extends Device {
         const muted = await this.device.getMuted();
         this.updateProp('muted', muted);
 
-        await mkdirp(path.join(getMediaPath(), this.id));
+        await mkdirp(path.join(getMediaPath(this.adapter.userProfile.mediaDir), this.id));
 
         const state = await this.device.getCurrentState();
         this.updateProp('playing', state === 'playing');
@@ -406,7 +410,7 @@ export class Speaker extends Device {
     }
 
     async updateAlbumArt(url: string) {
-        const artUrl = path.join(getMediaPath(), this.id, 'album.png');
+        const artUrl = path.join(getMediaPath(this.adapter.userProfile.mediaDir), this.id, 'album.png');
         let parsed = false;
 
         try {
