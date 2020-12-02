@@ -2,7 +2,7 @@
   "name": "sonos-adapter",
   "display_name": "Sonos",
   "version": "0.9.2",
-  "description": "Sonos adapter for the Mozilla WebThings Gateway.",
+  "description": "Sonos adapter for WebThings Gateway.",
   "main": "lib/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -14,8 +14,6 @@
     "url": "git+https://github.com/tim-hellhake/sonos-adapter.git"
   },
   "keywords": [
-    "mozilla",
-    "iot",
     "adapter",
     "sonos"
   ],
