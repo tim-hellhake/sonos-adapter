@@ -9,6 +9,7 @@
 import { Adapter, Database } from 'gateway-addon';
 import { DeviceDiscovery, Sonos, Discovery } from 'sonos';
 import { Speaker } from './speaker';
+const manifest = require('../manifest.json');
 
 //TODO cache state
 
@@ -21,32 +22,38 @@ export class SonosAdapter extends Adapter {
         this.init();
     }
 
-    private async init() {
+    private async readConfig() {
         const db = new Database(this.manifest.name);
         await db.open();
-        const config = await db.loadConfig();
+        const config = { ...manifest.options.default, ...await db.loadConfig() };
+        db.saveConfig(config);
+        db.close();
+        return config;
+    }
+
+    private async init() {
+        const config = await this.readConfig();
 
         if (config && config.addresses) {
             for (const addr of config.addresses) {
                 const device = new Sonos(addr);
                 try {
-                    await this.addDevice(device);
+                    await this.addDevice(device, config);
                 } catch (e) {
                     console.warn(e);
                 }
             }
         }
 
-        db.close();
-        this.discover(20000);
+        this.discover(20000, config);
     }
 
-    private discover(timeout: number) {
+    private discover(timeout: number, config: any) {
         return DeviceDiscovery({
             timeout
         }, async (device: any) => {
             try {
-                await this.addDevice(device);
+                await this.addDevice(device, config);
             } catch (e) {
                 console.warn(e);
             }
@@ -57,7 +64,7 @@ export class SonosAdapter extends Adapter {
     * @param {SonosDevice} device Sonos device to add.
     * @return {Promise} which resolves to the device added.
     */
-    async addDevice(device: any) {
+    async addDevice(device: any, config: any) {
         const deviceDescription = await device.deviceDescription();
         if (deviceDescription.serialNum in this.devices) {
             throw 'Device: ' + deviceDescription.serialNum + ' already exists.';
@@ -66,7 +73,7 @@ export class SonosAdapter extends Adapter {
             // Don't try to add BRIDGEs
             //TODO should also avoid adding BOOSTs
             if (deviceDescription.zoneType != '4') {
-                const speaker = new Speaker(this, deviceDescription.serialNum, device, this.manifest);
+                const speaker = new Speaker(this, deviceDescription.serialNum, device, config);
                 return speaker.ready;
             }
         }
@@ -90,8 +97,9 @@ export class SonosAdapter extends Adapter {
     *
     * @param {Number} timeoutSeconds Number of seconds to run before timeout
     */
-    startPairing(_timeoutSeconds: number) {
-        this.deviceDiscovery = this.discover(_timeoutSeconds * 1000);
+    async startPairing(_timeoutSeconds: number) {
+        const config = await this.readConfig();
+        this.deviceDiscovery = this.discover(_timeoutSeconds * 1000, config);
     }
 
     /**

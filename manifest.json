@@ -18,7 +18,15 @@
     "options": {
         "default": {
             "addresses": [],
-            "spotifyRegion": "EU"
+            "spotifyRegion": "EU",
+            "features": {
+                "group": true,
+                "crossfade": true,
+                "track": true,
+                "album": true,
+                "artist": true,
+                "albumArt": true
+            }
         },
         "schema": {
             "type": "object",
@@ -33,6 +41,36 @@
                         "EU",
                         "US"
                     ]
+                },
+                "features": {
+                    "type": "object",
+                    "title": "Enabled features",
+                    "properties": {
+                        "group": {
+                            "type": "boolean",
+                            "title": "Group/Ungroup"
+                        },
+                        "crossfade": {
+                            "type": "boolean",
+                            "title": "Crossfade"
+                        },
+                        "track": {
+                            "type": "boolean",
+                            "title": "Track"
+                        },
+                        "album": {
+                            "type": "boolean",
+                            "title": "Album"
+                        },
+                        "artist": {
+                            "type": "boolean",
+                            "title": "Artist"
+                        },
+                        "albumArt": {
+                            "type": "boolean",
+                            "title": "Album art"
+                        }
+                    }
                 },
                 "addresses": {
                     "type": "array",
