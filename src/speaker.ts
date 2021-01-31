@@ -9,7 +9,6 @@
 import { SonosProperty } from './property';
 import { ReadonlyProperty } from './readonly-property';
 import { Sonos, SpotifyRegion } from 'sonos';
-import os from 'os';
 import mkdirp from 'mkdirp';
 import fs from 'fs';
 import path from 'path';
@@ -43,21 +42,6 @@ function getModeFromProps(shuffle: boolean, repeat: string) {
     return '';
 }
 
-function getMediaPath(mediaDir: string | undefined) {
-    if (mediaDir) {
-        return path.join(mediaDir, 'sonos');
-    }
-
-    let dir: string | undefined;
-    if (process.env.hasOwnProperty('MOZIOT_HOME')) {
-        dir = process.env.MOZIOT_HOME;
-    }
-    else {
-        dir = path.join(os.homedir(), '.mozilla-iot');
-    }
-    return path.join(dir || '', 'media', 'sonos');
-}
-
 export class Speaker extends Device {
     public ready: Promise<any>;
     currentDuration: number;
@@ -66,11 +50,13 @@ export class Speaker extends Device {
     progressInterval?: NodeJS.Timeout;
     _renderingControl: any;
     _avTransport: any;
+    mediaPath: string;
 
     constructor(adapter: Adapter, id: string, private device: any, private config: any) {
         super(adapter, id);
 
         this.name = device.host;
+        this.mediaPath = path.join(adapter.userProfile.mediaDir, 'sonos');
 
         const {
             crossfade,
@@ -231,7 +217,7 @@ export class Speaker extends Device {
         const muted = await this.device.getMuted();
         this.updateProp('muted', muted);
 
-        await mkdirp(path.join(getMediaPath(this.adapter.userProfile.mediaDir), this.id));
+        await mkdirp(path.join(this.mediaPath, this.id));
 
         const state = await this.device.getCurrentState();
         this.updateProp('playing', state === 'playing');
@@ -480,7 +466,7 @@ export class Speaker extends Device {
     }
 
     async updateAlbumArt(url: string) {
-        const artUrl = path.join(getMediaPath(this.adapter.userProfile.mediaDir), this.id, 'album.png');
+        const artUrl = path.join(this.mediaPath, this.id, 'album.png');
         let parsed = false;
 
         try {
