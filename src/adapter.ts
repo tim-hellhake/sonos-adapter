@@ -128,12 +128,4 @@ export class SonosAdapter extends Adapter {
             console.error(err);
         }
     }
-
-    /**
-    * Cancel unpairing process.
-    *
-    * @param {Object} device Device that is currently being paired
-    */
-    cancelRemoveThing(_device: any) {
-    }
 }
