@@ -16,14 +16,14 @@ const manifest = require('../manifest.json');
 export class SonosAdapter extends Adapter {
     private deviceDiscovery?: Discovery;
 
-    constructor(addonManager: any, private manifest: any) {
-        super(addonManager, 'SonosAdapter', manifest.name);
+    constructor(addonManager: any) {
+        super(addonManager, 'SonosAdapter', manifest.id);
         addonManager.addAdapter(this);
         this.init();
     }
 
     private async readConfig() {
-        const db = new Database(this.manifest.name);
+        const db = new Database(manifest.id);
         await db.open();
         const config = { ...manifest.options.default, ...await db.loadConfig() };
         db.saveConfig(config);
