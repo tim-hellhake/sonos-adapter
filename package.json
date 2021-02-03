@@ -35,6 +35,18 @@
     "sonos": "^1.14.0"
   },
   "files": [
+    "lib/properties/album-art-property.js",
+    "lib/properties/album-property.js",
+    "lib/properties/artist-property.js",
+    "lib/properties/crossfade-property.js",
+    "lib/properties/muted-property.js",
+    "lib/properties/playing-property.js",
+    "lib/properties/progress-property.js",
+    "lib/properties/repeat-property.js",
+    "lib/properties/repeat-shuffle-controller.js",
+    "lib/properties/shuffle-property.js",
+    "lib/properties/track-property.js",
+    "lib/properties/volume-property.js",
     "lib/adapter.js",
     "lib/property.js",
     "lib/speaker.js",
@@ -47,9 +59,11 @@
     "@types/mkdirp": "^1.0.1",
     "@types/node": "^14.14.10",
     "@types/node-fetch": "^2.5.7",
+    "@types/ws": "^7.4.0",
     "@typescript-eslint/eslint-plugin": "^4.14.2",
     "@typescript-eslint/parser": "^4.14.2",
     "eslint": "^7.19.0",
+    "gateway-addon": "^1.0.0",
     "nlf": "^2.1.1",
     "typescript": "^4.1.2"
   }
