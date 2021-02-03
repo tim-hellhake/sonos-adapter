@@ -2,7 +2,7 @@
     "id": "sonos-adapter",
     "short_name": "Sonos",
     "name": "Sonos",
-    "version": "0.10.0",
+    "version": "0.10.1",
     "author": "Tim Hellhake",
     "description": "Sonos adapter for WebThings Gateway.",
     "homepage_url": "https://github.com/tim-hellhake/sonos-adapter#readme",
