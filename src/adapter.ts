@@ -6,90 +6,92 @@
 
 'use strict';
 
-import { Adapter, Database } from 'gateway-addon';
-import { DeviceDiscovery, Sonos, Discovery } from 'sonos';
-import { Speaker } from './speaker';
+import {Adapter, AddonManager, Database, Device} from 'gateway-addon';
+import {DeviceDiscovery, Sonos, Discovery} from 'sonos';
+import {Speaker} from './speaker';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const manifest = require('../manifest.json');
 
-//TODO cache state
+// TODO cache state
 
 export class SonosAdapter extends Adapter {
     private deviceDiscovery?: Discovery;
 
-    constructor(addonManager: any) {
-        super(addonManager, 'SonosAdapter', manifest.id);
-        addonManager.addAdapter(this);
-        this.init();
+    constructor(addonManager: AddonManager) {
+      super(addonManager, 'SonosAdapter', manifest.id);
+      addonManager.addAdapter(this);
+      this.init();
     }
 
     private async readConfig() {
-        const db = new Database(manifest.id);
-        await db.open();
-        const config = { ...manifest.options.default, ...await db.loadConfig() };
-        db.saveConfig(config);
-        db.close();
-        return config;
+      const db = new Database(manifest.id);
+      await db.open();
+      const config = {...manifest.options.default, ...await db.loadConfig()};
+      db.saveConfig(config);
+      db.close();
+      return config;
     }
 
     private async init() {
-        const config = await this.readConfig();
+      const config = await this.readConfig();
 
-        if (config && config.addresses) {
-            for (const addr of config.addresses) {
-                const device = new Sonos(addr);
-                try {
-                    await this.addDevice(device, config);
-                } catch (e) {
-                    console.warn(e);
-                }
-            }
+      if (config && config.addresses) {
+        for (const addr of config.addresses) {
+          const device = new Sonos(addr);
+          try {
+            await this.addDevice(device, config);
+          } catch (e) {
+            console.warn(e);
+          }
         }
+      }
 
-        this.discover(20000, config);
+      this.discover(20000, config);
     }
 
-    private discover(timeout: number, config: any) {
-        return DeviceDiscovery({
-            timeout
-        }, async (device: any) => {
-            try {
-                await this.addDevice(device, config);
-            } catch (e) {
-                console.warn(e);
-            }
-        });
+    private discover(timeout: number, config: unknown): Discovery {
+      return DeviceDiscovery({
+        timeout,
+      }, async (device) => {
+        try {
+          await this.addDevice(device, config);
+        } catch (e) {
+          console.warn(e);
+        }
+      });
     }
 
     /**
     * @param {SonosDevice} device Sonos device to add.
     * @return {Promise} which resolves to the device added.
     */
-    async addDevice(device: any, config: any) {
-        const deviceDescription = await device.deviceDescription();
-        if (deviceDescription.serialNum in this.devices) {
-            throw 'Device: ' + deviceDescription.serialNum + ' already exists.';
+    async addDevice(device: Sonos, config: unknown): Promise<void> {
+      const deviceDescription = await device.deviceDescription();
+      if (deviceDescription.serialNum in this.devices) {
+        throw `Device: ${deviceDescription.serialNum} already exists.`;
+      } else {
+        // Don't try to add BRIDGEs
+        // TODO should also avoid adding BOOSTs
+        if (deviceDescription.zoneType != '4') {
+          // eslint-disable-next-line max-len
+          const speaker = new Speaker(this, deviceDescription.serialNum, device, config);
+          return speaker.ready;
         }
-        else {
-            // Don't try to add BRIDGEs
-            //TODO should also avoid adding BOOSTs
-            if (deviceDescription.zoneType != '4') {
-                const speaker = new Speaker(this, deviceDescription.serialNum, device, config);
-                return speaker.ready;
-            }
-        }
+
+        return Promise.resolve();
+      }
     }
 
     /**
     * @param {String} deviceId ID of the device to remove.
     */
-    removeDevice(deviceId: string) {
-        const device = this.devices[deviceId];
-        if (device) {
-            this.handleDeviceRemoved(device);
-        }
-        else {
-            throw new Error('Device: ' + deviceId + ' not found.');
-        }
+    removeDevice(deviceId: string): void {
+      const device = this.devices[deviceId];
+      if (device) {
+        this.handleDeviceRemoved(device);
+      } else {
+        throw new Error(`Device: ${deviceId} not found.`);
+      }
     }
 
     /**
@@ -97,20 +99,20 @@ export class SonosAdapter extends Adapter {
     *
     * @param {Number} timeoutSeconds Number of seconds to run before timeout
     */
-    async startPairing(_timeoutSeconds: number) {
-        const config = await this.readConfig();
-        this.deviceDiscovery = this.discover(_timeoutSeconds * 1000, config);
+    async startPairing(_timeoutSeconds: number): Promise<void> {
+      const config = await this.readConfig();
+      this.deviceDiscovery = this.discover(_timeoutSeconds * 1000, config);
     }
 
     /**
     * Cancel the pairing/discovery process.
     */
-    cancelPairing() {
-        try {
-            this.deviceDiscovery?.destroy();
-        } catch (e) {
-            console.log(`Error on stopping device discovery: ${e}`)
-        }
+    cancelPairing(): void {
+      try {
+        this.deviceDiscovery?.destroy();
+      } catch (e) {
+        console.log(`Error on stopping device discovery: ${e}`);
+      }
     }
 
     /**
@@ -118,14 +120,13 @@ export class SonosAdapter extends Adapter {
     *
     * @param {Object} device Device to unpair with
     */
-    removeThing(device: any) {
-        try {
-            this.removeDevice(device.id);
-            console.log('SonosAdapter: device:', device.id, 'was unpaired.');
-        }
-        catch (err) {
-            console.error('SonosAdapter: unpairing', device.id, 'failed');
-            console.error(err);
-        }
+    removeThing(device: Device): void {
+      try {
+        this.removeDevice(device.id);
+        console.log('SonosAdapter: device:', device.id, 'was unpaired.');
+      } catch (err) {
+        console.error('SonosAdapter: unpairing', device.id, 'failed');
+        console.error(err);
+      }
     }
 }

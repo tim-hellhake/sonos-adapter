@@ -6,6 +6,9 @@
 
 'use strict';
 
-import { SonosAdapter } from './adapter';
+import {AddonManager} from 'gateway-addon';
+import {SonosAdapter} from './adapter';
 
-export = (addonManager: any) => new SonosAdapter(addonManager);
+export = function(addonManager: AddonManager): void {
+  new SonosAdapter(addonManager);
+};

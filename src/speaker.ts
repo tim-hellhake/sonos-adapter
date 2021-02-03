@@ -6,9 +6,12 @@
 
 'use strict';
 
-import { SonosProperty } from './property';
-import { ReadonlyProperty } from './readonly-property';
-import { Sonos, SpotifyRegion } from 'sonos';
+import {SonosProperty} from './property';
+import {ReadonlyProperty} from './readonly-property';
+import {AVTransportService,
+  RenderingControlService,
+  Sonos,
+  SpotifyRegion} from 'sonos';
 import mkdirp from 'mkdirp';
 import fs from 'fs';
 import path from 'path';
@@ -17,633 +20,648 @@ import output from 'image-output';
 import imageType from 'image-type';
 import pixels from 'image-pixels';
 import jpeg from 'jpeg-js';
-import { Device, Adapter } from 'gateway-addon';
+import {Device, Adapter, Property, Action} from 'gateway-addon';
 
 function getModeFromProps(shuffle: boolean, repeat: string) {
-    if (!shuffle && repeat === 'None') {
-        return 'NORMAL';
-    }
-    else if (repeat === 'None') {
-        return 'SHUFFLE_NOREPEAT';
-    }
-    else if (shuffle && repeat === 'All') {
-        return 'SHUFFLE';
-    }
-    else if (repeat === 'All') {
-        return 'REPEAT_ALL';
-    }
-    else if (shuffle && repeat === 'One') {
-        return 'SHUFFLE_REPEAT_ONE';
-    }
-    else if (repeat === 'One') {
-        return 'REPEAT_ONE';
-    }
+  if (!shuffle && repeat === 'None') {
+    return 'NORMAL';
+  } else if (repeat === 'None') {
+    return 'SHUFFLE_NOREPEAT';
+  } else if (shuffle && repeat === 'All') {
+    return 'SHUFFLE';
+  } else if (repeat === 'All') {
+    return 'REPEAT_ALL';
+  } else if (shuffle && repeat === 'One') {
+    return 'SHUFFLE_REPEAT_ONE';
+  } else if (repeat === 'One') {
+    return 'REPEAT_ONE';
+  }
 
-    return '';
+  return '';
 }
 
 export class Speaker extends Device {
-    public ready: Promise<any>;
+    public ready: Promise<void>;
+
     currentDuration: number;
+
     currentPosition: number;
+
     supportsFixedVolume?: boolean;
-    progressInterval?: NodeJS.Timeout;
-    _renderingControl: any;
-    _avTransport: any;
+
+    progressInterval: NodeJS.Timeout | null = null;
+
+    _renderingControl?: RenderingControlService;
+
+    _avTransport?: AVTransportService;
+
     mediaPath: string;
 
-    constructor(adapter: Adapter, id: string, private device: any, private config: any) {
-        super(adapter, id);
+    // eslint-disable-next-line max-len
+    constructor(adapter: Adapter, id: string, private device: Sonos, private config: unknown) {
+      super(adapter, id);
 
-        this.name = device.host;
-        this.mediaPath = path.join(adapter.userProfile.mediaDir, 'sonos');
+      this.name = device.host;
+      this.mediaPath = path.join(adapter.userProfile.mediaDir, 'sonos');
 
-        const {
-            crossfade,
-            track,
-            album,
-            artist,
-            albumArt
-        } = config.features;
+      const {
+        crossfade,
+        track,
+        album,
+        artist,
+        albumArt,
+      } = (<{features: Record<string, boolean>}>config).features;
 
-        this.properties.set('volume', new SonosProperty(this, 'volume', {
-            title: 'Volume',
-            type: 'integer',
-            unit: 'percent',
-            '@type': 'LevelProperty'
-        }, 100));
-        this.properties.set('playing', new SonosProperty(this, 'playing', {
-            title: 'Playing',
-            type: 'boolean',
-            '@type': 'BooleanProperty'
+      this.properties.set('volume', new SonosProperty(this, 'volume', {
+        title: 'Volume',
+        type: 'integer',
+        unit: 'percent',
+        '@type': 'LevelProperty',
+      }, 100));
+      this.properties.set('playing', new SonosProperty(this, 'playing', {
+        title: 'Playing',
+        type: 'boolean',
+        '@type': 'BooleanProperty',
+      }, false));
+      this.properties.set('shuffle', new SonosProperty(this, 'shuffle', {
+        title: 'Shuffle',
+        type: 'boolean',
+        '@type': 'BooleanProperty',
+      }, false));
+      this.properties.set('repeat', new SonosProperty(this, 'repeat', {
+        title: 'Repeat',
+        type: 'string',
+        '@type': 'EnumProperty',
+        enum: [
+          'None',
+          'One',
+          'All',
+        ],
+      }, false));
+      if (crossfade) {
+        this.properties.set('crossfade', new SonosProperty(this, 'crossfade', {
+          title: 'Crossfade',
+          type: 'boolean',
+          '@type': 'BooleanProperty',
         }, false));
-        this.properties.set('shuffle', new SonosProperty(this, 'shuffle', {
-            title: 'Shuffle',
-            type: 'boolean',
-            '@type': 'BooleanProperty'
-        }, false));
-        this.properties.set('repeat', new SonosProperty(this, 'repeat', {
-            title: 'Repeat',
-            type: 'string',
-            '@type': 'EnumProperty',
-            enum: [
-                'None',
-                'One',
-                'All',
-            ]
-        }, false));
-        if (crossfade) {
-            this.properties.set('crossfade', new SonosProperty(this, 'crossfade', {
-                title: 'Crossfade',
-                type: 'boolean',
-                '@type': 'BooleanProperty'
-            }, false));
-        }
-        if (track) {
-            this.properties.set('track', new ReadonlyProperty(this, 'track', {
-                title: 'Track',
-                type: 'string',
-                '@type': 'StringProperty'
-            }));
-        }
-        if (album) {
-            this.properties.set('album', new ReadonlyProperty(this, 'album', {
-                title: 'Album',
-                type: 'string',
-                '@type': 'StringProperty'
-            }));
-        }
-        if (artist) {
-            this.properties.set('artist', new ReadonlyProperty(this, 'artist', {
-                title: 'Artist',
-                type: 'string',
-                '@type': 'StringProperty'
-            }));
-        }
-        this.properties.set('progress', new SonosProperty(this, 'progress', {
-            title: 'Progress',
-            type: 'number',
-            '@type': 'LevelProperty'
-        }, 0));
-        if (albumArt) {
-            this.properties.set('albumArt', new ReadonlyProperty(this, 'albumArt', {
-                title: 'Album art',
-                '@type': 'ImageProperty',
-                type: 'null',
-                links: [
-                    {
-                        mediaType: 'image/png',
-                        href: `/media/sonos/${this.id}/album.png`,
-                        rel: 'alternate'
-                    }
-                ]
-            }));
-        }
-        this.properties.set('muted', new SonosProperty(this, 'muted', {
-            title: 'Muted',
-            type: 'boolean',
-            '@type': 'BooleanProperty'
-        }, false));
-        this.currentDuration = 0;
-        this.currentPosition = 0;
+      }
+      if (track) {
+        this.properties.set('track', new ReadonlyProperty(this, 'track', {
+          title: 'Track',
+          type: 'string',
+          '@type': 'StringProperty',
+        }));
+      }
+      if (album) {
+        this.properties.set('album', new ReadonlyProperty(this, 'album', {
+          title: 'Album',
+          type: 'string',
+          '@type': 'StringProperty',
+        }));
+      }
+      if (artist) {
+        this.properties.set('artist', new ReadonlyProperty(this, 'artist', {
+          title: 'Artist',
+          type: 'string',
+          '@type': 'StringProperty',
+        }));
+      }
+      this.properties.set('progress', new SonosProperty(this, 'progress', {
+        title: 'Progress',
+        type: 'number',
+        '@type': 'LevelProperty',
+      }, 0));
+      if (albumArt) {
+        this.properties.set('albumArt', new ReadonlyProperty(this, 'albumArt', {
+          title: 'Album art',
+          '@type': 'ImageProperty',
+          type: 'null',
+          links: [
+            {
+              mediaType: 'image/png',
+              href: `/media/sonos/${this.id}/album.png`,
+              rel: 'alternate',
+            },
+          ],
+        }));
+      }
+      this.properties.set('muted', new SonosProperty(this, 'muted', {
+        title: 'Muted',
+        type: 'boolean',
+        '@type': 'BooleanProperty',
+      }, false));
+      this.currentDuration = 0;
+      this.currentPosition = 0;
 
-        //TODO eq
-        //TODO loudness
-        //TODO balance for stereo pairs
-        //TODO actions? Like clear queue, stop
-        //TODO fields like current track (album art), queue size
-        //TODO queue track position property
-        //TODO property for queue size/stopped?
-        //TODO playback state when grouped
-        //TODO play line-in
-        //TODO action to play notification (needs file input and has a toggle for where to play)
-        // Useful list of things: https://github.com/SoCo/SoCo/wiki/Sonos-UPnP-Services-and-Functions
+      // TODO eq
+      // TODO loudness
+      // TODO balance for stereo pairs
+      // TODO actions? Like clear queue, stop
+      // TODO fields like current track (album art), queue size
+      // TODO queue track position property
+      // TODO property for queue size/stopped?
+      // TODO playback state when grouped
+      // TODO play line-in
+      // TODO action to play notification
+      // (needs file input and has a toggle for where to play)
+      // Useful list of things:
+      // https://github.com/SoCo/SoCo/wiki/Sonos-UPnP-Services-and-Functions
 
-        this.addAction('next', {
-            title: 'Next',
-            description: 'Skip current track and start playing next track in the queue'
-        });
-        this.addAction('prev', {
-            title: 'Previous',
-            description: 'Play previous track in the queue'
-        });
-        this.addAction('stop', {
-            title: 'Stop',
-            description: 'Stop current playback'
-        });
-        this.addAction('playUri', {
-            title: 'Play URI',
-            description: 'Play the music from the given URI',
-            input: {
-                type: 'object',
-                properties: {
-                    uri: {
-                        type: 'string'
-                    }
-                }
-            }
-        });
+      this.addAction('next', {
+        title: 'Next',
+        // eslint-disable-next-line max-len
+        description: 'Skip current track and start playing next track in the queue',
+      });
+      this.addAction('prev', {
+        title: 'Previous',
+        description: 'Play previous track in the queue',
+      });
+      this.addAction('stop', {
+        title: 'Stop',
+        description: 'Stop current playback',
+      });
+      this.addAction('playUri', {
+        title: 'Play URI',
+        description: 'Play the music from the given URI',
+        input: {
+          type: 'object',
+          properties: {
+            uri: {
+              type: 'string',
+            },
+          },
+        },
+      });
 
-        this.ready = this.fetchProperties().then(() => this.adapter.handleDeviceAdded(this));
+      this.ready = this.fetchProperties()
+        .then(() => this.adapter.handleDeviceAdded(this));
     }
 
-    async fetchProperties() {
-        const {
-            group,
-            crossfade,
-            track,
-            album,
-            artist,
-            albumArt
-        } = this.config.features;
+    async fetchProperties(): Promise<void> {
+      const {
+        group,
+        crossfade,
+        track,
+        album,
+        artist,
+        albumArt,
+      } = (<{features: Record<string, boolean>}> this.config).features;
 
-        const name = await this.device.getName();
-        this.setTitle(name);
+      const name = await this.device.getName();
+      this.setTitle(name);
 
-        this.supportsFixedVolume = await this.getSupportsFixedVolume();
-        let shouldGetVolume = true;
-        if (this.supportsFixedVolume) {
-            const hasFixedVolume = await this.getFixedVolume();
-            shouldGetVolume = !hasFixedVolume;
-            if (hasFixedVolume) {
-                this.findProperty('volume').readOnly = true;
-            }
+      this.supportsFixedVolume = await this.getSupportsFixedVolume();
+      let shouldGetVolume = true;
+      if (this.supportsFixedVolume) {
+        const hasFixedVolume = await this.getFixedVolume();
+        shouldGetVolume = !hasFixedVolume;
+        if (hasFixedVolume) {
+          this.findProperty('volume').readOnly = true;
         }
-        if (shouldGetVolume) {
-            const volume = await this.device.getVolume();
-            this.updateProp('volume', volume);
+      }
+      if (shouldGetVolume) {
+        const volume = await this.device.getVolume();
+        this.updateProp('volume', volume);
+      }
+
+      const muted = await this.device.getMuted();
+      this.updateProp('muted', muted);
+
+      await mkdirp(path.join(this.mediaPath, this.id));
+
+      const state = await this.device.getCurrentState();
+      this.updateProp('playing', state === 'playing');
+
+      const currentTrack = await this.device.currentTrack();
+      if (currentTrack.duration > 0) {
+        if (track) {
+          this.updateProp('track', currentTrack.title);
         }
 
-        const muted = await this.device.getMuted();
-        this.updateProp('muted', muted);
+        if (artist) {
+          this.updateProp('artist', currentTrack.artist);
+        }
 
-        await mkdirp(path.join(this.mediaPath, this.id));
+        if (album) {
+          this.updateProp('album', currentTrack.album);
+        }
+        // eslint-disable-next-line max-len
+        this.updateProp('progress', (currentTrack.position / currentTrack.duration) * 100);
+        await this.updateAlbumArt(currentTrack.albumArtURL);
+        this.currentDuration = currentTrack.duration;
+        this.currentPosition = currentTrack.position;
+        if (state === 'playing') {
+          // eslint-disable-next-line max-len
+          this.progressInterval = setInterval(() => this.updateProgress(), 1000);
+        }
+      }
+      // TODO current track change event
 
-        const state = await this.device.getCurrentState();
-        this.updateProp('playing', state === 'playing');
+      const mode = await this.device.getPlayMode();
+      this.updatePlayMode(mode);
 
-        const currentTrack = await this.device.currentTrack();
-        if (currentTrack.duration > 0) {
-            if (track) {
-                this.updateProp('track', currentTrack.title);
+      if (crossfade) {
+        const crossFade = await this.getCrossfadeMode();
+        this.updateProp('crossfade', crossFade);
+      }
+
+      if (group) {
+        const groups = await this.device.getAllGroups();
+        const req: string[] = [];
+        const props: Record<string, unknown> = {};
+        const groupDetails = {
+          title: 'Group/Ungroup',
+          description: 'Group Sonos players',
+          input: {
+            type: 'object',
+            required: req,
+            properties: props,
+          },
+        };
+        const playerInfo = await this.device.getZoneInfo();
+        const groupId = `RINCON_${playerInfo.MACAddress.replace(/:/g, '')}`;
+        for (const zone of groups) {
+          if (!zone.ID.startsWith(groupId)) {
+            // eslint-disable-next-line max-len
+            const zoneCoordinator = zone.ZoneGroupMember.find((m) => m.UUID === zone.Coordinator);
+            if (zoneCoordinator && zoneCoordinator.Invisible != '1') {
+              groupDetails.input.properties[zoneCoordinator.ZoneName] = {
+                type: 'boolean',
+                // eslint-disable-next-line max-len
+                default: zone.ZoneGroupMember.some((m) => m.UUID.startsWith(groupId)),
+              };
+              groupDetails.input.required.push(zoneCoordinator.ZoneName);
             }
+          }
+        }
+        this.addAction('group', groupDetails);
+      }
 
-            if (artist) {
-                this.updateProp('artist', currentTrack.artist);
-            }
+      this.device.on('PlayState', (state) => {
+        const playing = state === 'playing';
+        this.updateProp('playing', playing);
+        if (playing && !this.progressInterval && this.currentDuration) {
+          // eslint-disable-next-line max-len
+          this.progressInterval = setInterval(() => this.updateProgress(), 1000);
+        } else if (!playing && this.progressInterval) {
+          this.clearProgress();
+        }
+      });
 
-            if (album) {
-                this.updateProp('album', currentTrack.album);
-            }
-            this.updateProp('progress', (currentTrack.position / currentTrack.duration) * 100);
-            await this.updateAlbumArt(currentTrack.albumArtURL);
-            this.currentDuration = currentTrack.duration;
+      this.device.on('PlaybackStopped', () => {
+        if (track) {
+          this.updateProp('track', '');
+        }
+
+        if (artist) {
+          this.updateProp('artist', '');
+        }
+
+        if (album) {
+          this.updateProp('album', '');
+        }
+        this.updateProp('playing', false);
+        this.updateProp('progress', 0);
+        this.clearProgress();
+      });
+
+      this.device.on('CurrentTrack', async (currentTrack) => {
+        if (track) {
+          this.updateProp('track', currentTrack.title);
+        }
+
+        if (artist) {
+          this.updateProp('artist', currentTrack.artist);
+        }
+
+        if (album) {
+          this.updateProp('album', currentTrack.album);
+        }
+
+        if (albumArt) {
+          try {
+            this.updateAlbumArt(currentTrack.albumArtURI);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+
+        if (!isNaN(currentTrack.duration)) {
+          this.currentDuration = currentTrack.duration;
+          if (currentTrack.position) {
             this.currentPosition = currentTrack.position;
-            if (state === 'playing') {
-                this.progressInterval = setInterval(() => this.updateProgress(), 1000);
-            }
-        }
-        //TODO current track change event
+            // eslint-disable-next-line max-len
+            this.updateProp('progress', (this.currentPosition / this.currentDuration) * 100);
+          } else {
+            const currentTrack = await this.device.currentTrack();
 
-        const mode = await this.device.getPlayMode();
+            try {
+              this.currentDuration = currentTrack.duration;
+              this.currentPosition = currentTrack.position;
+
+              if (this.currentDuration != 0) {
+                // eslint-disable-next-line max-len
+                this.updateProp('progress', (currentTrack.position / currentTrack.duration) * 100);
+                const isPlaying = this.findProperty('playing').value;
+                if (isPlaying && !this.progressInterval) {
+                  // eslint-disable-next-line max-len
+                  this.progressInterval = setInterval(() => this.updateProgress(), 1000);
+                } else if (!isPlaying) {
+                  this.clearProgress();
+                }
+              } else {
+                this.updateProp('progress', 0);
+                this.clearProgress();
+              }
+            } catch (e) {
+              this.assumeDisconnected();
+            }
+          }
+        } else {
+          this.currentDuration = 0;
+          this.updateProp('progress', 0);
+          this.clearProgress();
+        }
+      });
+
+      this.device.on('AVTransport', (newValue) => {
+        const mode = newValue.CurrentPlayMode;
         this.updatePlayMode(mode);
 
         if (crossfade) {
-            const crossFade = await this.getCrossfadeMode();
-            this.updateProp('crossfade', crossFade);
+          this.updateProp('crossfade', newValue.CurrentCrossfadeMode != '0');
         }
 
-        if (group) {
-            const groups = await this.device.getAllGroups();
-            const req: any[] = []
-            const props: { [key: string]: any } = {}
-            const groupDetails = {
-                title: 'Group/Ungroup',
-                description: 'Group Sonos players',
-                input: {
-                    type: 'object',
-                    required: req,
-                    properties: props
-                }
-            };
-            const playerInfo = await this.device.getZoneInfo();
-            const groupId = `RINCON_${playerInfo.MACAddress.replace(/:/g, '')}`;
-            for (const zone of groups) {
-                if (!zone.ID.startsWith(groupId)) {
-                    const zoneCoordinator = zone.ZoneGroupMember.find((m: any) => m.UUID === zone.Coordinator);
-                    if (zoneCoordinator.Invisible != '1') {
-                        groupDetails.input.properties[zoneCoordinator.ZoneName] = {
-                            type: 'boolean',
-                            default: zone.ZoneGroupMember.some((m: any) => m.UUID.startsWith(groupId))
-                        };
-                        groupDetails.input.required.push(zoneCoordinator.ZoneName);
-                    }
-                }
-            }
-            this.addAction('group', groupDetails);
-        }
+        if (!newValue.CurrentTrackMetaDataParsed) {
+          if (track) {
+            this.updateProp('track', '');
+          }
 
-        this.device.on('PlayState', (state: any) => {
-            const playing = state === 'playing';
-            this.updateProp('playing', playing);
-            if (playing && !this.progressInterval && this.currentDuration) {
-                this.progressInterval = setInterval(() => this.updateProgress(), 1000);
-            }
-            else if (!playing && this.progressInterval) {
-                this.clearProgress();
-            }
+          if (artist) {
+            this.updateProp('artist', '');
+          }
+
+          if (album) {
+            this.updateProp('album', '');
+          }
+
+          this.currentDuration = 0;
+          this.updateProp('progress', 0);
+          this.clearProgress();
+        }
+      });
+
+      this.device.on('Muted', (muted) => {
+        this.updateProp('muted', muted);
+      });
+
+      // TODO update group action
+
+      if (shouldGetVolume) {
+        this.device.on('Volume', (volume) => {
+          this.updateProp('volume', volume);
         });
-
-        this.device.on('PlaybackStopped', () => {
-            if (track) {
-                this.updateProp('track', '');
-            }
-
-            if (artist) {
-                this.updateProp('artist', '');
-            }
-
-            if (album) {
-                this.updateProp('album', '');
-            }
-            this.updateProp('playing', false);
-            this.updateProp('progress', 0);
-            this.clearProgress();
-        });
-
-        this.device.on('CurrentTrack', async (currentTrack: any) => {
-            if (track) {
-                this.updateProp('track', currentTrack.title);
-            }
-
-            if (artist) {
-                this.updateProp('artist', currentTrack.artist);
-            }
-
-            if (album) {
-                this.updateProp('album', currentTrack.album);
-            }
-
-            if (albumArt) {
-                try {
-                    this.updateAlbumArt(currentTrack.albumArtURI);
-                } catch (e) {
-                    console.error(e)
-                }
-            }
-
-            if (!isNaN(currentTrack.duration)) {
-                this.currentDuration = currentTrack.duration;
-                if (currentTrack.position) {
-                    this.currentPosition = currentTrack.position;
-                    this.updateProp('progress', (this.currentPosition / this.currentDuration) * 100);
-                }
-                else {
-                    const currentTrack = await this.device.currentTrack();
-
-                    try {
-                        this.currentDuration = currentTrack.duration;
-                        this.currentPosition = currentTrack.position;
-
-                        if (this.currentDuration != 0) {
-                            this.updateProp('progress', (currentTrack.position / currentTrack.duration) * 100);
-                            const isPlaying = this.findProperty('playing').value;
-                            if (isPlaying && !this.progressInterval) {
-                                this.progressInterval = setInterval(() => this.updateProgress(), 1000);
-                            }
-                            else if (!isPlaying) {
-                                this.clearProgress();
-                            }
-                        }
-                        else {
-                            this.updateProp('progress', 0);
-                            this.clearProgress();
-                        }
-                    } catch (e) {
-                        this.assumeDisconnected()
-                    }
-                }
-            }
-            else {
-                this.currentDuration = 0;
-                this.updateProp('progress', 0);
-                this.clearProgress();
-            }
-        });
-
-        this.device.on('AVTransport', (newValue: any) => {
-            const mode = newValue.CurrentPlayMode;
-            this.updatePlayMode(mode);
-
-            if (crossfade) {
-                this.updateProp('crossfade', newValue.CurrentCrossfadeMode != '0');
-            }
-
-            if (!newValue.CurrentTrackMetaDataParsed) {
-                if (track) {
-                    this.updateProp('track', '');
-                }
-
-                if (artist) {
-                    this.updateProp('artist', '');
-                }
-
-                if (album) {
-                    this.updateProp('album', '');
-                }
-
-                this.currentDuration = 0;
-                this.updateProp('progress', 0);
-                this.clearProgress();
-            }
-        });
-
-        this.device.on('Muted', (muted: any) => {
-            this.updateProp('muted', muted);
-        });
-
-        //TODO update group action
-
-        if (shouldGetVolume) {
-            this.device.on('Volume', (volume: any) => {
-                this.updateProp('volume', volume);
-            });
-        }
-        //TODO else add listener for fixed volume to be disabled
+      }
+      // TODO else add listener for fixed volume to be disabled
     }
 
-    get renderingControl() {
-        if (!this._renderingControl) {
-            this._renderingControl = this.device.renderingControlService();
-        }
-        return this._renderingControl;
+    get renderingControl(): RenderingControlService {
+      if (!this._renderingControl) {
+        this._renderingControl = this.device.renderingControlService();
+      }
+      return this._renderingControl;
     }
 
-    get avTransport() {
-        if (!this._avTransport) {
-            this._avTransport = this.device.avTransportService();
-        }
-        return this._avTransport;
+    get avTransport(): AVTransportService {
+      if (!this._avTransport) {
+        this._avTransport = this.device.avTransportService();
+      }
+      return this._avTransport;
     }
 
-    async getSupportsFixedVolume() {
-        const response = await this.renderingControl._request('GetSupportsOutputFixed', { InstanceID: 0 });
-        return response.CurrentSupportsFixed != '0';
+    async getSupportsFixedVolume(): Promise<boolean> {
+      // eslint-disable-next-line max-len
+      const response = await this.renderingControl._request('GetSupportsOutputFixed', {InstanceID: 0});
+      return response.CurrentSupportsFixed != '0';
     }
 
-    async getFixedVolume() {
-        const response = await this.renderingControl._request('GetOutputFixed', { InstanceID: 0 });
-        return response.CurrentFixed != '0';
+    async getFixedVolume(): Promise<boolean> {
+      // eslint-disable-next-line max-len
+      const response = await this.renderingControl._request('GetOutputFixed', {InstanceID: 0});
+      return response.CurrentFixed != '0';
     }
 
-    async getCrossfadeMode() {
-        const response = await this.avTransport.GetCrossfadeMode();
-        return response.CurrrentCrossfadeMode != '0';
+    async getCrossfadeMode(): Promise<boolean> {
+      const response = await this.avTransport.GetCrossfadeMode();
+      return response.CurrrentCrossfadeMode != '0';
     }
 
-    updatePlayMode(mode: string) {
-        this.updateProp('shuffle', mode && mode.startsWith('SHUFFLE'));
-        let repeat = 'None';
-        if (mode === 'REPEAT_ALL' || mode === 'SHUFFLE') {
-            repeat = 'All';
-        }
-        else if (mode === 'REPEAT_ONE' || mode === 'SHUFFLE_REPEAT_ONE') {
-            repeat = 'One';
-        }
-        this.updateProp('repeat', repeat);
+    updatePlayMode(mode: string) : void {
+      this.updateProp('shuffle', mode && mode.startsWith('SHUFFLE'));
+      let repeat = 'None';
+      if (mode === 'REPEAT_ALL' || mode === 'SHUFFLE') {
+        repeat = 'All';
+      } else if (mode === 'REPEAT_ONE' || mode === 'SHUFFLE_REPEAT_ONE') {
+        repeat = 'One';
+      }
+      this.updateProp('repeat', repeat);
     }
 
-    updateProgress() {
-        this.currentPosition += 1;
-        this.updateProp('progress', (this.currentPosition / this.currentDuration) * 100);
+    updateProgress(): void {
+      this.currentPosition += 1;
+      // eslint-disable-next-line max-len
+      this.updateProp('progress', (this.currentPosition / this.currentDuration) * 100);
     }
 
-    clearProgress() {
-        if (this.progressInterval) {
-            clearInterval(this.progressInterval);
-            this.progressInterval = undefined;
-        }
+    clearProgress(): void {
+      if (this.progressInterval) {
+        clearInterval(this.progressInterval);
+        this.progressInterval = null;
+      }
     }
 
-    async updateAlbumArt(url: string) {
-        const artUrl = path.join(this.mediaPath, this.id, 'album.png');
-        let parsed = false;
+    async updateAlbumArt(url: string): Promise<void> {
+      const artUrl = path.join(this.mediaPath, this.id, 'album.png');
+      let parsed = false;
 
-        try {
-            if (url) {
-                const response = await fetch(url);
-                const blob = await response.buffer();
-                const type = imageType(blob);
+      try {
+        if (url) {
+          const response = await fetch(url);
+          const blob = await response.buffer();
+          const type = imageType(blob);
 
-                if (type) {
-                    if (type.mime === 'image/png') {
-                        await new Promise<void>((resolve, reject) => {
-                            fs.writeFile(artUrl, blob, (e) => {
-                                if (e) {
-                                    reject(e);
-                                }
-                                else {
-                                    resolve();
-                                }
-                            });
-                        });
-                        parsed = true;
-                    }
-                    else if (type.mime === 'image/jpeg') {
-                        const imageData = jpeg.decode(blob);
-                        const px = await pixels(
-                            blob,
-                            {
-                                width: imageData.width,
-                                height: imageData.height,
-                            }
-                        );
-                        await output(px, artUrl);
-                        parsed = true;
-                    }
-                }
-            }
-        } catch (e) {
-            console.warn(e);
-        }
-
-        if (!parsed) {
-            await new Promise<void>((resolve) => {
-                if (fs.existsSync, artUrl) {
-                    fs.unlink(artUrl, (_e) => {
-                        resolve();
-                    });
-                }
-                else {
+          if (type) {
+            if (type.mime === 'image/png') {
+              await new Promise<void>((resolve, reject) => {
+                fs.writeFile(artUrl, blob, (e) => {
+                  if (e) {
+                    reject(e);
+                  } else {
                     resolve();
+                  }
+                });
+              });
+              parsed = true;
+            } else if (type.mime === 'image/jpeg') {
+              const imageData = jpeg.decode(blob);
+              const px = await pixels(
+                blob,
+                {
+                  width: imageData.width,
+                  height: imageData.height,
                 }
+              );
+              await output(px, artUrl);
+              parsed = true;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(e);
+      }
+
+      if (!parsed) {
+        await new Promise<void>((resolve) => {
+          if (fs.existsSync(artUrl)) {
+            fs.unlink(artUrl, () => {
+              resolve();
             });
-        }
+          } else {
+            resolve();
+          }
+        });
+      }
     }
 
-    updateProp(propertyName: string, value: any) {
-        const property = this.findProperty(propertyName);
-        if (property.value !== value) {
-            property.setCachedValue(value);
-            super.notifyPropertyChanged(property);
-        }
+    updateProp(propertyName: string, value: unknown): void {
+      const property = this.findProperty(propertyName);
+      if (property.value !== value) {
+        property.setCachedValue(value);
+        super.notifyPropertyChanged(property);
+      }
     }
 
-    async notifyPropertyChanged(property: any) {
-        const newValue = property.value;
-        try {
-            switch (property.name) {
-                case 'playing':
-                    if (newValue) {
-                        await this.device.play();
-                    }
-                    else {
-                        await this.device.pause();
-                    }
-                    break;
-                case 'volume':
-                    if (this.supportsFixedVolume && await this.getFixedVolume()) {
-                        this.findProperty('volume').readOnly = true;
-                        throw new Error('Volume is fixed');
-                    }
-                    else {
-                        this.findProperty('volume').readOnly = false;
-                    }
-                    await this.device.setVolume(newValue);
-                    break;
-                case 'shuffle':
-                case 'repeat':
-                    await this.device.setPlayMode(
-                        getModeFromProps(
-                            this.properties.get('shuffle')?.value,
-                            this.properties.get('repeat')?.value
-                        )
-                    );
-                    break;
-                case 'crossfade':
-                    await this.avTransport.SetCrossfadeMode({ InstanceID: 0, CrossfadeMode: newValue });
-                    break;
-                case 'progress':
-                    if (this.currentDuration > 0) {
-                        const newPosition = Math.floor((newValue / 100) * this.currentDuration);
-                        await this.device.seek(newPosition);
-                        this.currentPosition = newPosition;
-                    }
-                    else {
-                        throw "Can't change progress without track";
-                    }
-                    break;
-                case 'muted':
-                    await this.device.setMuted(newValue);
-                    break;
+    async notifyPropertyChanged(property: Property): Promise<void> {
+      const newValue = property.value;
+      try {
+        switch (property.name) {
+          case 'playing':
+            if (newValue) {
+              await this.device.play();
+            } else {
+              await this.device.pause();
             }
-            super.notifyPropertyChanged(property);
-        }
-        catch (e) {
-            this.assumeDisconnected();
-        }
-    }
-
-    async performAction(action: any) {
-        try {
-            switch (action.name) {
-                case 'next':
-                    action.start();
-                    await this.device.next();
-                    action.finish();
-                    break;
-                case 'prev':
-                    action.start();
-                    await this.device.previous();
-                    action.finish();
-                    break;
-                case 'stop':
-                    action.start();
-                    await this.device.stop();
-                    action.finish();
-                    break;
-                case 'group':
-                    action.start();
-                    //TODO only execute if the new group config is different from the current one.
-                    await this.device.leaveGroup();
-                    const topo = await this.device.getAllGroups();
-                    const topoCoordinators = topo.map((z: any) => z.ZoneGroupMember.find((m: any) => m.UUID === z.Coordinator));
-                    for (const input in action.input) {
-                        if (action.input[input]) {
-                            const deviceInfo = topoCoordinators.find((z: any) => z.ZoneName.toLowerCase() == input.toLowerCase());
-                            const deviceIP = deviceInfo.Location.match(/^http:\/\/([^:]+)/)[1];
-                            const dev: any = new Sonos(deviceIP);
-                            await dev.joinGroup(this.name);
-                        }
-                    }
-                    action.finish();
-                    break;
-                case 'playUri':
-                    action.start();
-                    if (action.input.uri) {
-                        try {
-                            const {
-                                spotifyRegion
-                            } = this.config;
-
-                            this.device.setSpotifyRegion(SpotifyRegion[spotifyRegion] || SpotifyRegion.EU)
-                            await this.device.play(action.input.uri);
-                        } catch (e) {
-                            console.log(`Could not play uri: ${e}`);
-                        }
-                    } else {
-                        console.log('Parameter uri is missing for action playUri');
-                    }
-                    action.finish();
+            break;
+          case 'volume':
+            if (this.supportsFixedVolume && await this.getFixedVolume()) {
+              this.findProperty('volume').readOnly = true;
+              throw new Error('Volume is fixed');
+            } else {
+              this.findProperty('volume').readOnly = false;
             }
+            await this.device.setVolume(newValue);
+            break;
+          case 'shuffle':
+          case 'repeat':
+            await this.device.setPlayMode(
+              getModeFromProps(
+                this.properties.get('shuffle')?.value,
+                this.properties.get('repeat')?.value
+              )
+            );
+            break;
+          case 'crossfade':
+            // eslint-disable-next-line max-len
+            await this.avTransport.SetCrossfadeMode({InstanceID: 0, CrossfadeMode: newValue});
+            break;
+          case 'progress':
+            if (this.currentDuration > 0) {
+              // eslint-disable-next-line max-len
+              const newPosition = Math.floor((newValue / 100) * this.currentDuration);
+              await this.device.seek(newPosition);
+              this.currentPosition = newPosition;
+            } else {
+              throw 'Can\'t change progress without track';
+            }
+            break;
+          case 'muted':
+            await this.device.setMuted(newValue);
+            break;
         }
-        catch (e) {
-            this.assumeDisconnected();
-        }
+        super.notifyPropertyChanged(property);
+      } catch (e) {
+        this.assumeDisconnected();
+      }
     }
 
-    assumeDisconnected() {
-        this.adapter.removeThing(this);
-        this.adapter.startPairing(60);
+    async performAction(action: Action): Promise<void> {
+      try {
+        switch (action.name) {
+          case 'next':
+            action.start();
+            await this.device.next();
+            action.finish();
+            break;
+          case 'prev':
+            action.start();
+            await this.device.previous();
+            action.finish();
+            break;
+          case 'stop':
+            action.start();
+            await this.device.stop();
+            action.finish();
+            break;
+          case 'group': {
+            action.start();
+            // eslint-disable-next-line max-len
+            // TODO only execute if the new group config is different from the current one.
+            await this.device.leaveGroup();
+            const topo = await this.device.getAllGroups();
+            // eslint-disable-next-line max-len
+            const topoCoordinators = topo.map((z) => z.ZoneGroupMember.find((m) => m.UUID === z.Coordinator));
+            for (const input in action.input) {
+              if (action.input[input]) {
+                // eslint-disable-next-line max-len
+                const deviceInfo = topoCoordinators.find((z) => z?.ZoneName?.toLowerCase() == input.toLowerCase());
+
+                if (deviceInfo) {
+                // eslint-disable-next-line max-len
+                  const deviceIP = (deviceInfo.Location.match(/^http:\/\/([^:]+)/) ?? [])[1];
+                  const dev: Sonos = new Sonos(deviceIP);
+                  await dev.joinGroup(this.name);
+                }
+              }
+            }
+            action.finish();
+            break;
+          }
+          case 'playUri':
+            action.start();
+            if (action.input.uri) {
+              try {
+                const {
+                  spotifyRegion,
+                } = (<Record<string, SpotifyRegion>> this.config);
+
+                const region = SpotifyRegion[spotifyRegion] || SpotifyRegion.EU;
+                this.device.setSpotifyRegion(region);
+                await this.device.play(action.input.uri);
+              } catch (e) {
+                console.log(`Could not play uri: ${e}`);
+              }
+            } else {
+              console.log('Parameter uri is missing for action playUri');
+            }
+            action.finish();
+        }
+      } catch (e) {
+        this.assumeDisconnected();
+      }
+    }
+
+    assumeDisconnected(): void {
+      this.adapter.removeThing(this);
+      this.adapter.startPairing(60);
     }
 }

@@ -1,0 +1,4 @@
+src/gateway-addon.d.ts
+src/image-output.d.ts
+src/image-pixels.d.ts
+src/sonos.d.ts

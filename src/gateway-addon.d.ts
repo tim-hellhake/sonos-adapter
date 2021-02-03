@@ -23,6 +23,7 @@ declare module 'gateway-addon' {
         public value: any
         public device: Device;
         public readOnly: boolean;
+      name: any;
         constructor(device: Device, name: string, propertyDescr: {});
         public setCachedValue(value: any): void;
         public setCachedValueAndNotify(value: any): void;
@@ -32,7 +33,7 @@ declare module 'gateway-addon' {
     class Device {
         protected '@context': string;
         protected '@type': string[];
-        protected id: string;
+        public id: string;
         protected name: string;
         protected description: string;
         protected adapter: Adapter;
@@ -70,5 +71,16 @@ declare module 'gateway-addon' {
         public loadConfig(): Promise<any>;
         public saveConfig(config: any): Promise<void>;
         public close(): void;
+    }
+
+    class AddonManager {
+      addAdapter(adapter: Adapter): void;
+    }
+
+    class Action {
+      name: any;
+      start(): void
+      finish(): void
+      input: any;
     }
 }
