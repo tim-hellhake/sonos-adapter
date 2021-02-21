@@ -50,6 +50,8 @@ export class Speaker extends Device {
     constructor(adapter: Adapter, id: string, private device: Sonos, private config: unknown) {
       super(adapter, id);
 
+      (this as unknown as {'@type': string[]})['@type'].push('OnOffSwitch');
+
       this.setTitle(device.host);
 
       const {

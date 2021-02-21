@@ -13,7 +13,7 @@ export class PlayingProperty extends Property<boolean> {
     super(device, 'playing', {
       title: 'Playing',
       type: 'boolean',
-      '@type': 'BooleanProperty',
+      '@type': 'OnOffProperty',
     });
 
     sonos.on('PlaybackStopped', () => {
