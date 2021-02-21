@@ -1,7 +1,7 @@
 {
   "name": "sonos-adapter",
   "display_name": "Sonos",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "description": "Sonos adapter for WebThings Gateway.",
   "main": "lib/index.js",
   "scripts": {
