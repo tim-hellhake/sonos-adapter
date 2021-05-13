@@ -26,9 +26,9 @@ export class AlbumArtProperty extends Property<number> {
       title: 'Album art',
       '@type': 'ImageProperty',
       type: 'null',
-      links: [
+      forms: [
         {
-          mediaType: 'image/png',
+          contentType: 'image/png',
           href: `/media/sonos/${device.getId()}/album.png`,
           rel: 'alternate',
         },

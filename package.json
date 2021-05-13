@@ -63,7 +63,7 @@
     "@typescript-eslint/eslint-plugin": "^4.15.1",
     "@typescript-eslint/parser": "^4.15.1",
     "eslint": "^7.20.0",
-    "gateway-addon": "^1.0.0",
+    "gateway-addon": "2.0.0-alpha.1",
     "nlf": "^2.1.1",
     "typescript": "^4.1.5"
   }
