@@ -31,7 +31,7 @@
     "is-browser": "^2.1.0",
     "jpeg-js": "^0.4.2",
     "mkdirp": "^1.0.4",
-    "node-fetch": "^2.6.1",
+    "node-fetch": "^3.1.1",
     "sonos": "^1.14.0"
   },
   "files": [
